@@ -1,8 +1,23 @@
-# Project Billing Disabler
+# Google Cloud Kill Project Billing
 
 This project contains a Google Cloud Run Function (2nd Gen) designed to automatically disable billing for a Google Cloud project. It is triggered by a Pub/Sub message, which is published by a Cloud Billing budget alert.
 
 **⚠️ Warning: This is a destructive action.** Disconnecting a project from its billing account will stop all paid services. The project enters a 30-day grace period. If billing is not re-enabled within this period, the project and all its resources may be **permanently deleted**.
+
+## Table of Contents
+
+- [Repo Metadata](#repo-metadata)
+- [Architecture](#architecture)
+- [Prerequisites](#prerequisites)
+- [Local Environment Setup](#local-environment-setup)
+- [Project Structure](#project-structure)
+- [IAM Permissions](#iam-permissions)
+- [Unit Testing](#unit-testing)
+- [Deployment](#deployment)
+
+## Repo Metadata
+
+Author: Darren Lester
 
 ## Architecture
 
@@ -32,7 +47,7 @@ To configure your local development environment, you must first create a `.env` 
 
 1.  **Create a `.env` file** in the root of the project. This file will be used by both the setup and deployment scripts. It should contain:
 
-    ```
+    ```bash
     # For gcloud authentication and project setup
     GOOGLE_CLOUD_PROJECT="your-finops-project-id"
 
@@ -68,10 +83,9 @@ The project is structured as follows:
 
 ## IAM Permissions
 
-The Cloud Function's **runtime service account** requires the following IAM roles to operate correctly:
-
--   `roles/billing.projectManager`: Required on the projects whose billing will be disabled. This allows the function to update the project's billing information.
--   `roles/billing.user`: Required on the Cloud Billing Account.
+The Cloud Function's **runtime service account** requires 
+- The `Billing Account Administrator` role on the Cloud Billing Account.
+- Or, on the projects to be disconnected: `Project Billing Manager` and one of `Project Viewer` or `Project Owner`
 
 ## Unit Testing
 
@@ -88,3 +102,11 @@ Once your environment is configured and you have populated the `.env` file, you 
 ```bash
 ./scripts/deploy.sh
 ```
+
+## Useful References
+
+- [Create, edit, or delete budgets and budget alerts](https://cloud.google.com/billing/docs/how-to/budgets)
+- [https://cloud.google.com/blog/products/gcp/better-cost-control-with-google-cloud-billing-programmatic-notifications](https://cloud.google.com/blog/products/gcp/better-cost-control-with-google-cloud-billing-programmatic-notifications)
+- [Set up programmatic notifications](https://cloud.google.com/billing/docs/how-to/budgets-programmatic-notifications)
+- [Enable, disable, or change billing for a project](https://cloud.google.com/billing/docs/how-to/modify-project)
+- [Disable billing usage with notifications](https://cloud.google.com/billing/docs/how-to/disable-billing-with-notifications)
