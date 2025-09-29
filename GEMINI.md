@@ -19,6 +19,18 @@ Note that failures with Google Cloud are likely if this script has not been run.
 
 The goal of this project is to create a Google Cloud Run Function (2nd Gen) designed to automatically disable billing for a Google Cloud project. It is triggered by a Pub/Sub message, which is published by a Cloud Billing budget alert.
 
+## Building and Running
+
+### Dependencies
+
+- **uv:** Python package manager
+- **Google Cloud SDK:** For interacting with GCP services
+- **make:** For running common development tasks
+
+Project dependencies are managed in `pyproject.toml` and can be installed using `uv`. The `make` commands streamline many `uv` and `adk` commands.
+
+Note that the Google Cloud Run Function requires its own `requirements.txt`. This is created from `pyproject.toml` when we run `make requirements`.
+
 ## Important References
 
 Before offering advice, make sure you have read these URLs. Use the `webFetch` tool to read the content:

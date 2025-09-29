@@ -13,12 +13,10 @@ the project and all its resources may be **permanently deleted**.
 """
 import base64
 import json
-import os
 
 import functions_framework
-from google.cloud import billing_v1
+from google.cloud import billing_v1, logging
 from google.cloud.billing.budgets_v1 import BudgetServiceClient
-from google.cloud import logging
 
 # Set up logging
 logging_client = logging.Client()
@@ -67,24 +65,23 @@ def disable_billing_for_project(cloud_event):
 
     # The budget filter contains the projects the budget is scoped to
     if not budget.budget_filter or not budget.budget_filter.projects:
-        logger.log_text(f"Budget {budget_id} is not scoped to a single project.", severity="WARNING")
+        logger.log_text(f"Budget {budget_id} is not scoped to any projects. No action taken.", severity="WARNING")
         return
 
-    # Extract the project ID (e.g., "projects/123456789012")
-    target_project_id_full = budget.budget_filter.projects[0]
-    target_project_id = target_project_id_full.split("/")[1]
-
-    logger.log_text(f"Budget exceeded for project: {target_project_id}. Disabling billing.")
-
+    project_ids = [p.split("/")[1] for p in budget.budget_filter.projects]
     billing_client = billing_v1.CloudBillingClient()
-    project_billing_info = {
-        "name": f"projects/{target_project_id}/billingInfo",
-        "billing_account_name": "",  # Setting to an empty string disables billing
-    }
 
-    try:
-        billing_client.update_project_billing_info(project_billing_info)
-        logger.log_text(f"Successfully disabled billing for project {target_project_id}.")
-    except Exception as e:
-        logger.log_text(f"Error disabling billing for project {target_project_id}: {e}", severity="ERROR")
+    for project_id in project_ids:
+        logger.log_text(f"Budget exceeded for project: {project_id}. Disabling billing.")
+        
+        project_billing_info = {
+            "name": f"projects/{project_id}/billingInfo",
+            "billing_account_name": "",  # Setting to an empty string disables billing
+        }
+
+        try:
+            billing_client.update_project_billing_info(project_billing_info)
+            logger.log_text(f"Successfully disabled billing for project {project_id}.")
+        except Exception as e:
+            logger.log_text(f"Error disabling billing for project {project_id}: {e}", severity="ERROR")
 

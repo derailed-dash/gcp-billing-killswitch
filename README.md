@@ -92,7 +92,7 @@ The Cloud Function's **runtime service account** requires
 After setting up your environment with the `setup-env.sh` script, you can run the unit tests:
 
 ```bash
-python3 -m unittest discover tests
+make test
 ```
 
 ## Deployment
@@ -100,8 +100,21 @@ python3 -m unittest discover tests
 Once your environment is configured and you have populated the `.env` file, you can deploy the function by running the deployment script:
 
 ```bash
+# Make sure requirements.txt has been created first
 ./scripts/deploy.sh
 ```
+
+## Useful Commands
+
+| Command                       | Description                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------------- |
+| `source scripts/setup-env.sh` | Setup Google Cloud project, ADC, and Python dependencies |
+| `make install`                | Install all required dependencies using `uv` |
+| `make requirements`           | Create a `requirements.txt` for the Cloud Run Function, from `pyproject.toml` |
+| `make test`                   | Run unit and integration tests |
+| `make lint`                   | Run code quality checks (codespell, ruff, mypy) |
+
+For full command options and usage, refer to the [Makefile](Makefile).
 
 ## Useful References
 
