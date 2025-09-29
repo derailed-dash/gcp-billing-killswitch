@@ -126,13 +126,13 @@ gcloud functions deploy "$FUNCTION_NAME" \
 
 ## Useful Commands
 
-| Command                       | Description                                                                           |
-| ----------------------------- | ------------------------------------------------------------------------------------- |
+| Command                       | Description                                              |
+| ----------------------------- | -------------------------------------------------------- |
 | `source scripts/setup-env.sh` | Setup Google Cloud project, ADC, and Python dependencies |
-| `make install`                | Install all required dependencies using `uv` |
+| `make install`                | Install all required dependencies using `uv`             |
 | `make requirements`           | Create a `requirements.txt` for the Cloud Run Function, from `pyproject.toml` |
-| `make test`                   | Run unit and integration tests |
-| `make lint`                   | Run code quality checks (codespell, ruff, mypy) |
+| `make test`                   | Run unit and integration tests                           |
+| `make lint`                   | Run code quality checks (codespell, ruff, mypy)          |
 
 For full command options and usage, refer to the [Makefile](Makefile).
 

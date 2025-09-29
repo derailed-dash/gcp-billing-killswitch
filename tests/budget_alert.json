@@ -1,0 +1,10 @@
+{
+  "budgetDisplayName": "My Test Budget",
+  "costAmount": 120.0,
+  "budgetAmount": 100.0,
+  "costIntervalStart": "2025-09-01T00:00:00Z",
+  "billingAccountId": "BILLING_ACCOUNT_ID",
+  "alertThresholdExceeded": 1.0,
+  "currencyCode": "GBP",
+  "projectNumber": "TEST_PROJECT_NUMBER"
+ }

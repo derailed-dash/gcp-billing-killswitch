@@ -13,9 +13,19 @@ Given the critical and destructive nature of the 'Kill GCP Project Billing' Clou
 *   **Purpose:** To verify that your Cloud Function correctly interacts with *real* Google Cloud services (Pub/Sub, Cloud Billing API) in a controlled, non-production environment.
 
 *   **Strategy:**
-    *   **Dedicated Test Project:** Create a completely isolated Google Cloud project specifically for testing this function. This project should be easily disposable.
+    *   **Dedicated Test Project:** Create a completely isolated Google Cloud project specifically for testing this function. This project should be easily disposable. Create a `budget_alerts` Pub/Sub topic in this project.
     *   **Real Pub/Sub Topic:** Deploy your Cloud Function to this test project, ensuring it's subscribed to a *real* Pub/Sub topic within that project.
     *   **Simulated Budget Alerts:** Manually publish Pub/Sub messages to this topic that precisely mimic the structure of a Cloud Billing budget alert.
+   
+    ```bash
+    encoded_data=$(cat test_budget_alert.json | base64)
+    
+    # Publish the message:
+    gcloud pubsub topics publish my-billing-alerts-topic \
+       --message="$encoded_data" \
+       --attribute="budgetId=my-test-budget-id"
+   ```
+
         *   **Success Case:** Publish a message indicating a budget has been exceeded for a *test project* (a project within your test billing account that you are willing to have billing disabled for). Verify that billing is successfully disabled for that test project.
         *   **Failure Cases:** Publish messages for scenarios where billing *should not* be disabled (e.g., cost not exceeding budget, missing `budgetId`, missing `billingAccountId`, budget not scoped to any project). Verify that billing remains enabled and appropriate logs are generated.
     *   **Verification:** Use `gcloud` commands or the Cloud Console to confirm:

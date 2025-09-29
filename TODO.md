@@ -13,9 +13,9 @@
 - [x] Create and execute unit tests
 - [x] Create Cloud Function deployment script
 - [x] Create testing strategy
-- [ ] Implement Integration Testing (Staging Environment)
-    - [ ] Set up a dedicated test project for integration testing.
-    - [ ] Deploy the Cloud Function to the integration test project, initially with `SIMULATE_DEACTIVATION=true`.
+- [-] Implement Integration Testing (Staging Environment)
+    - [x] Set up a dedicated test project for integration testing.
+    - [x] Deploy the Cloud Function to the integration test project, initially with `SIMULATE_DEACTIVATION=true`.
     - [ ] Develop and execute simulated Pub/Sub messages for success and failure cases.
     - [ ] Verify function behavior and logging output in simulation mode.
     - [ ] (Optional) Deploy without `SIMULATE_DEACTIVATION` for actual billing deactivation tests on a disposable project.
