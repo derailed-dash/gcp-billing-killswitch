@@ -14,6 +14,8 @@ This project contains a Google Cloud Run Function (2nd Gen) designed to automati
 - [IAM Permissions](#iam-permissions)
 - [Unit Testing](#unit-testing)
 - [Deployment](#deployment)
+- [Useful Commands](#useful-commands)
+- [Useful References](#useful-references)
 
 ## Repo Metadata
 
@@ -97,10 +99,10 @@ make test
 
 ## Deployment
 
-Once your environment is configured and you have populated the `.env` file, you can deploy the function by running the deployment script:
+Once your environment is configured and you have populated the `.env` file, you can deploy the function by first generating the `requirements.txt` and then running the deployment script:
 
 ```bash
-# Make sure requirements.txt has been created first
+make requirements
 ./scripts/deploy.sh
 ```
 
