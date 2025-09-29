@@ -18,13 +18,28 @@ Given the critical and destructive nature of the 'Kill GCP Project Billing' Clou
     *   **Simulated Budget Alerts:** Manually publish Pub/Sub messages to this topic that precisely mimic the structure of a Cloud Billing budget alert.
    
     ```bash
-    encoded_data=$(cat test_budget_alert.json | base64)
+    export GOOGLE_CLOUD_PROJECT=$DEV_GOOGLE_CLOUD_PROJECT
+    export TEST_PROJECT_NUMBER=$(gcloud projects describe $GOOGLE_CLOUD_PROJECT --format="value(projectNumber)")
+
+    # Deploy the Cloud Function to the test project
+    source scripts/deploy.sh
+
+    # CREATE TEST MSG
+    # Replace placeholders using values from env vars
+    sed "s/BILLING_ACCOUNT_ID/${BILLING_ACCOUNT_ID}/g; s/TEST_PROJECT_NUMBER/${TEST_PROJECT_NUMBER}/g" \
+      tests/budget_alert.json.template > tests/budget_alert.json
+
+    msg=$(cat tests/budget_alert.json)
     
-    # Publish the message:
-    gcloud pubsub topics publish my-billing-alerts-topic \
-       --message="$encoded_data" \
+    # Publish the message
+    gcloud pubsub topics publish $PUB_SUB_TOPIC \
+       --project="$GOOGLE_CLOUD_PROJECT" \
+       --message="$msg" \
        --attribute="budgetId=my-test-budget-id"
-   ```
+    
+    # Now we can read the Cloud Function logs
+    gcloud functions logs read $FUNCTION_NAME --project=$GOOGLE_CLOUD_PROJECT --region=YOUR_REGION --limit=20 
+    ```
 
         *   **Success Case:** Publish a message indicating a budget has been exceeded for a *test project* (a project within your test billing account that you are willing to have billing disabled for). Verify that billing is successfully disabled for that test project.
         *   **Failure Cases:** Publish messages for scenarios where billing *should not* be disabled (e.g., cost not exceeding budget, missing `budgetId`, missing `billingAccountId`, budget not scoped to any project). Verify that billing remains enabled and appropriate logs are generated.

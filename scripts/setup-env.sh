@@ -60,7 +60,6 @@ else
     gcloud config set project "$GOOGLE_CLOUD_PROJECT"
 fi
 
-
 echo -e "\n${BLUE}--- Current gcloud project configuration ---${RESET}"
 gcloud config list project
 echo -e "${BLUE}------------------------------------------${RESET}"

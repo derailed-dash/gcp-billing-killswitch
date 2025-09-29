@@ -186,21 +186,10 @@ yarn-error.log
 /libpeerconnection.log
 testem.log
 /typings
+/tests/budget_alert.json
 
 # System files
 .DS_Store
 Thumbs.db
 *.vscode*
 
-# Starter pack specific
-.persist_vector_store
-tests/load_test/.results/*.html
-tests/load_test/.results/*.csv
-locust_env
-my_env.tfvars
-.streamlit_chats
-.saved_chats
-.requirements.txt
-
-.gemini/
-gha-creds-*.json

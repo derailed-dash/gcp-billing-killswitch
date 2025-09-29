@@ -39,6 +39,9 @@ Before deploying, ensure you have the following:
     -   Cloud Billing API
     -   Cloud Functions API
     -   Cloud Build API
+    -   Eventarc API
+    -   Cloud Run API
+    
 3.  **A Pub/Sub topic** that receives notifications from your Cloud Billing budgets.
 4.  **A Cloud Billing Budget** configured to monitor a specific project and send alerts to the aforementioned Pub/Sub topic.
 5.  **Local Tools:** `gcloud` CLI and `uv` must be installed on your local machine.
