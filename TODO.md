@@ -1,0 +1,28 @@
+# TODO
+
+- [x] Create project scaffold, including `README`, `src`, agent folder, `.gitignore`, `.gitattributes`
+- [x] Create `TODO.md`
+- [x] Create `.env` and point to a Google Cloud project
+- [x] Create environment setup script
+- [x] Create `Makefile`
+- [x] Create `GEMINI.md`
+- [x] Create `pyproject.toml`
+- [x] Create Cloud Function source code
+- [x] Generate Function `requirements.txt` from `pyproject.toml`, using `make requirements`
+- [x] Create and execute unit tests
+- [x] Create Cloud Function deployment script
+- [x] Create testing strategy
+- [ ] Implement Integration Testing (Staging Environment)
+    - [ ] Set up a dedicated test project for integration testing.
+    - [ ] Deploy the Cloud Function to the integration test project.
+    - [ ] Develop and execute simulated Pub/Sub messages for success and failure cases.
+    - [ ] Verify function behavior and billing status in the integration test project.
+- [ ] Implement End-to-End Testing (Staging Environment with Real Budget)
+    - [ ] Set up a dedicated test project and test billing account for end-to-end testing.
+    - [ ] Configure a real Cloud Billing budget with a low threshold in the staging environment.
+    - [ ] Incur test costs to trigger the budget alert.
+    - [ ] Verify the entire workflow, from budget alert to billing disablement.
+- [ ] Implement Monitoring and Alerting (Production Deployment)
+    - [ ] Ensure comprehensive Cloud Logging for the function.
+    - [ ] Set up Cloud Monitoring alerts for function errors and invocations.
+    - [ ] Set up alerts for budget notifications.
