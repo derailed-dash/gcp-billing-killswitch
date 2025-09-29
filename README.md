@@ -106,6 +106,24 @@ make requirements
 ./scripts/deploy.sh
 ```
 
+### Simulation Mode
+
+For testing purposes, you can deploy the function in a simulation mode where it will log that billing *would have been disabled* without actually making the API call to detach the project from its billing account. This is controlled by the `SIMULATE_DEACTIVATION` environment variable.
+
+To deploy in simulation mode, uncomment the `--set-env-vars` line in `scripts/deploy.sh` or add it manually:
+
+```bash
+gcloud functions deploy "$FUNCTION_NAME" \
+  --gen2 \
+  --runtime=python312 \
+  --project="$GOOGLE_CLOUD_PROJECT" \
+  --region="$REGION" \
+  --source=./src \
+  --entry-point=disable_billing_for_project \
+  --trigger-topic="$BILLING_ALERT_TOPIC" \
+  --set-env-vars SIMULATE_DEACTIVATION=true
+```
+
 ## Useful Commands
 
 | Command                       | Description                                                                           |

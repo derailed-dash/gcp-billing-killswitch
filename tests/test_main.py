@@ -136,5 +136,30 @@ class TestDisableBilling(unittest.TestCase):
             'billing_account_name': ''
         })
 
+    @patch.dict('os.environ', {'SIMULATE_DEACTIVATION': 'true'})
+    @patch('main.billing_v1.CloudBillingClient')
+    @patch('main.BudgetServiceClient')
+    @patch('main.logger.log_text')
+    def test_simulate_deactivation_flag(self, mock_log_text, mock_budget_client, mock_billing_client):
+        """Test that billing is not disabled when SIMULATE_DEACTIVATION is true."""
+        # Mock budget response
+        mock_budget = MagicMock()
+        mock_budget.budget_filter.projects = ['projects/test-project-123']
+        mock_budget_client.return_value.get_budget.return_value = mock_budget
+
+        # Mock Pub/Sub message
+        data = {"costAmount": 120.0, "budgetAmount": 100.0, "billingAccountId": "billing-account-id"}
+        attributes: dict[str, str] = {"budgetId": "test-budget-id"}
+        event = self._create_mock_event(data, attributes)
+
+        disable_billing_for_project(event)
+
+        # Assert that the billing client was NOT called to update the project
+        mock_billing_client.return_value.update_project_billing_info.assert_not_called()
+        # Assert that the simulation log message was called
+        mock_log_text.assert_any_call(
+            "SIMULATION MODE: Billing would have been disabled for project test-project-123."
+        )
+
 if __name__ == '__main__':
     unittest.main()

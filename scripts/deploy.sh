@@ -17,5 +17,7 @@ gcloud functions deploy "$FUNCTION_NAME" \
   --region="$REGION" \
   --source=./src \
   --entry-point=disable_billing_for_project \
-  --trigger-topic="$BILLING_ALERT_TOPIC"
+  --trigger-topic="$BILLING_ALERT_TOPIC" \
+  # Uncomment the following line to enable simulation mode (billing will not be disabled)
+  # --set-env-vars SIMULATE_DEACTIVATION=true
 

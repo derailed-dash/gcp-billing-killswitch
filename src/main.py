@@ -13,6 +13,7 @@ the project and all its resources may be **permanently deleted**.
 """
 import base64
 import json
+import os
 
 import functions_framework
 from google.cloud import billing_v1, logging
@@ -79,9 +80,15 @@ def disable_billing_for_project(cloud_event):
             "billing_account_name": "",  # Setting to an empty string disables billing
         }
 
-        try:
-            billing_client.update_project_billing_info(project_billing_info)
-            logger.log_text(f"Successfully disabled billing for project {project_id}.")
-        except Exception as e:
-            logger.log_text(f"Error disabling billing for project {project_id}: {e}", severity="ERROR")
+        # Check for simulation mode
+        simulate_deactivation = os.getenv("SIMULATE_DEACTIVATION", "false").lower() == "true"
+
+        if simulate_deactivation:
+            logger.log_text(f"SIMULATION MODE: Billing would have been disabled for project {project_id}.")
+        else:
+            try:
+                billing_client.update_project_billing_info(project_billing_info)
+                logger.log_text(f"Successfully disabled billing for project {project_id}.")
+            except Exception as e:
+                logger.log_text(f"Error disabling billing for project {project_id}: {e}", severity="ERROR")
 
