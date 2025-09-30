@@ -10,6 +10,7 @@ dependencies = [
     "google-cloud-billing",
     "google-cloud-billing-budgets",
     "google-cloud-logging",
+    "google-api-python-client"
 ]
 
 requires-python = ">=3.12,<3.13"

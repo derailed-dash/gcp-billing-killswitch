@@ -13,6 +13,10 @@
 - [x] Create and execute unit tests
 - [x] Create Cloud Function deployment script
 - [x] Create testing strategy
+- [x] Create service account
+- [ ] Fix unit tests
+- [ ] Fix Budget Client 403 with SA
+- [ ] Create the Pub/Sub with gcloud
 - [-] Implement Integration Testing (Staging Environment)
     - [x] Set up a dedicated test project for integration testing.
     - [x] Deploy the Cloud Function to the integration test project, initially with `SIMULATE_DEACTIVATION=true`.

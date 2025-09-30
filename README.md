@@ -105,7 +105,6 @@ make test
 Once your environment is configured and you have populated the `.env` file, you can deploy the function by first generating the `requirements.txt` and then running the deployment script:
 
 ```bash
-make requirements
 ./scripts/deploy.sh
 ```
 
@@ -133,7 +132,6 @@ gcloud functions deploy "$FUNCTION_NAME" \
 | ----------------------------- | -------------------------------------------------------- |
 | `source scripts/setup-env.sh` | Setup Google Cloud project, ADC, and Python dependencies |
 | `make install`                | Install all required dependencies using `uv`             |
-| `make requirements`           | Create a `requirements.txt` for the Cloud Run Function, from `pyproject.toml` |
 | `make test`                   | Run unit and integration tests                           |
 | `make lint`                   | Run code quality checks (codespell, ruff, mypy)          |
 

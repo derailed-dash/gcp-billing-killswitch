@@ -75,6 +75,6 @@ echo "Activating Python virtual environment..."
 source .venv/bin/activate
 
 echo "Syncing python dependencies with uv..."
-uv sync --dev --extra jupyter
+uv sync --dev
 
 echo -e "\n${GREEN}✅ Environment setup complete with project ${BOLD}$GOOGLE_CLOUD_PROJECT${RESET}${GREEN}. Your shell is now configured.${RESET}"
