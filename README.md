@@ -159,13 +159,8 @@ gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT_ID}" \
 
 gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT_ID}" \
   --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
-  --role="roles/billing.projectCostsManager" \
-  --project="${GOOGLE_CLOUD_PROJECT}" # 
-
-gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT_ID}" \
-  --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
-  --role="roles/billing.user" \
-  --project="${GOOGLE_CLOUD_PROJECT}"
+  --role="roles/billing.viewer" \
+  --project="${GOOGLE_CLOUD_PROJECT}"  
 
 gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT_ID}" \
   --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
@@ -239,11 +234,12 @@ sed "s/BILLING_ACCOUNT_ID/${BILLING_ACCOUNT_ID}/g; s/TEST_PROJECT_NUMBER/${TEST_
 
 msg=$(cat tests/budget_alert.json)
 
-# Publish the message
+# Ideally, create a budget alert for this test project
+# Then publish the test message
 gcloud pubsub topics publish $BILLING_ALERT_TOPIC \
     --project="$GOOGLE_CLOUD_PROJECT" \
     --message="$msg" \
-    --attribute="budgetId=my-test-budget-id"
+    --attribute="budgetId=$SAMPLE_BUDGET_ID"
 
 # Now we can read the Cloud Function logs
 ```

@@ -57,10 +57,6 @@ def disable_billing_for_project(cloud_event: CloudEvent):
         logger.log_text(f"Cost ({cost_amount}) has not exceeded budget ({budget_amount}). No action taken.")
         return
 
-    # Get the budget ID from the message attributes
-    attributes = cloud_event.data["message"]["attributes"]
-    budget_id = attributes.get("budgetId", {})
-
     if not budget_id:
         print("No budgetId found in message attributes. Exiting.")
         logger.log_text("No budgetId found in message attributes.", severity="ERROR")
