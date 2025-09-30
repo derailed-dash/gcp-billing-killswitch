@@ -14,7 +14,7 @@
 - [x] Create Cloud Function deployment script
 - [x] Create testing strategy
 - [x] Create service account
-- [ ] Fix unit tests
+- [x] Fix unit tests
 - [ ] Fix Budget Client 403 with SA
 - [ ] Create the Pub/Sub with gcloud
 - [-] Implement Integration Testing (Staging Environment)
