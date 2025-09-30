@@ -54,12 +54,13 @@ To configure your local development environment, you must first create a `.env` 
 
     ```bash
     # For gcloud authentication and project setup
-    GOOGLE_CLOUD_PROJECT="your-finops-project-id"
+    export GOOGLE_CLOUD_PROJECT="your-finops-project-id"
+    export GOOGLE_CLOUD_REGION="your-region"
 
     # For deployment
-    FUNCTION_NAME="your-function-name"
-    REGION="your-region"
-    BILLING_ALERT_TOPIC="your-billing-alert-topic"
+    export FUNCTION_NAME="your-function-name"
+    export BILLING_ALERT_TOPIC="your-billing-alert-topic"
+    export BILLING_ACCOUNT_ID="your billing ID"
     ```
 
 2.  **Run the setup script:** Source the script to configure your shell environment. This will handle `gcloud` authentication, Python dependency installation, and virtual environment activation.
@@ -102,28 +103,114 @@ make test
 
 ## Deployment
 
-Once your environment is configured and you have populated the `.env` file, you can deploy the function by first generating the `requirements.txt` and then running the deployment script:
+Once your environment is configured and you have populated the `.env` file, you can deploy the function by first generating the `requirements.txt` and then:
+
+### Every Session
 
 ```bash
-./scripts/deploy.sh
+source scripts/setup-env.sh
+
+# If we're working with DEV project
+export GOOGLE_CLOUD_PROJECT=$DEV_GOOGLE_CLOUD_PROJECT
+
+# Define service account variables
+SERVICE_ACCOUNT_NAME="${FUNCTION_NAME}-sa"
+SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
 ```
 
-### Simulation Mode
+### One-Time Project Setup (Per Project)
 
-For testing purposes, you can deploy the function in a simulation mode where it will log that billing *would have been disabled* without actually making the API call to detach the project from its billing account. This is controlled by the `SIMULATE_DEACTIVATION` environment variable.
+```bash
+# Enable APIs
+gcloud services enable --project=$GOOGLE_CLOUD_PROJECT \
+  cloudbuild.googleapis.com \
+  eventarc.googleapis.com \
+  cloudfunctions.googleapis.com \
+  run.googleapis.com \
+  logging.googleapis.com \
+  billingbudgets.googleapis.com
 
-To deploy in simulation mode, uncomment the `--set-env-vars` line in `scripts/deploy.sh` or add it manually:
+# First create the topic.
+# Then connect your Cloud Billing budget to the Pub/Sub topic in the Cloud Console.
+gcloud pubsub topics add-iam-policy-binding "${BILLING_ALERT_TOPIC}" \                                                                    │
+  --member="serviceAccount:cloud-billing-pubsub-publisher@gcp-sa-billing.iam.gserviceaccount.com" \                                       │
+  --role="roles/pubsub.publisher" \                                                                                                       │
+  --project="${GOOGLE_CLOUD_PROJECT}"                                                                                                     │
+
+# Define service account variables
+SERVICE_ACCOUNT_NAME="${FUNCTION_NAME}-sa"
+SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
+
+# Create service account if it doesn't exist
+if ! gcloud iam service-accounts describe "${SERVICE_ACCOUNT_EMAIL}" --project="${GOOGLE_CLOUD_PROJECT}" &> /dev/null; then
+    gcloud iam service-accounts create "${SERVICE_ACCOUNT_NAME}" \
+        --display-name="Service Account for ${FUNCTION_NAME}" \
+        --project="${GOOGLE_CLOUD_PROJECT}"
+    echo "Service account ${SERVICE_ACCOUNT_EMAIL} created."
+else
+    echo "Service account ${SERVICE_ACCOUNT_EMAIL} already exists."
+fi
+
+# Service Account IAM for Billing Account
+gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT_ID}" \
+  --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+  --role="roles/billing.user" \
+  --project="${GOOGLE_CLOUD_PROJECT}"
+
+gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT_ID}" \
+  --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+  --role="roles/billing.projectCostsManager" \
+  --project="${GOOGLE_CLOUD_PROJECT}" # 
+
+gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT_ID}" \
+  --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+  --role="roles/billing.user" \
+  --project="${GOOGLE_CLOUD_PROJECT}"
+
+gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT_ID}" \
+  --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+  --role="roles/billing.projectCostsManager" \
+  --project="${GOOGLE_CLOUD_PROJECT}"
+
+# Service Account IAM for Function-Hosting Project
+gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+  --member="serviceAccount:$SERVICE_ACCOUNT_EMAIL" \
+  --role="roles/billing.projectManager"
+
+gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+  --member="serviceAccount:$SERVICE_ACCOUNT_EMAIL" \
+  --role="roles/viewer"
+
+gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+  --member="serviceAccount:$SERVICE_ACCOUNT_EMAIL" \
+  --role="roles/logging.logWriter"
+
+gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+  --member="serviceAccount:$SERVICE_ACCOUNT_EMAIL" \
+  --role="roles/run.invoker"
+
+gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+  --member="serviceAccount:$SERVICE_ACCOUNT_EMAIL" \
+  --role="roles/pubsub.subscriber"
+```
+
+### Deploying the Cloud Run Function
+
+Note: for testing purposes, you can deploy the function in a simulation mode 
+where it will log that billing *would have been disabled* without actually making the API call to detach the project from its billing account. 
+This is controlled by the `SIMULATE_DEACTIVATION` environment variable.
 
 ```bash
 gcloud functions deploy "$FUNCTION_NAME" \
   --gen2 \
   --runtime=python312 \
   --project="$GOOGLE_CLOUD_PROJECT" \
-  --region="$REGION" \
+  --region="$GOOGLE_CLOUD_REGION" \
   --source=./src \
   --entry-point=disable_billing_for_project \
   --trigger-topic="$BILLING_ALERT_TOPIC" \
-  --set-env-vars SIMULATE_DEACTIVATION=true
+  --service-account="${SERVICE_ACCOUNT_EMAIL}" \
+  --set-env-vars SIMULATE_DEACTIVATION=true # Comment to disable simulation mode
 ```
 
 ## Useful Commands
@@ -136,6 +223,30 @@ gcloud functions deploy "$FUNCTION_NAME" \
 | `make lint`                   | Run code quality checks (codespell, ruff, mypy)          |
 
 For full command options and usage, refer to the [Makefile](Makefile).
+
+## Testing
+
+We can send a message that resembles a budget alert, like this:L
+
+```bash
+# Make sure we're using a test project before proceeding
+export GOOGLE_CLOUD_PROJECT=$DEV_GOOGLE_CLOUD_PROJECT
+export TEST_PROJECT_NUMBER=$(gcloud projects describe $GOOGLE_CLOUD_PROJECT --format="value(projectNumber)")
+
+# CREATE TEST MSG by replacing placeholders in the template using values from env vars
+sed "s/BILLING_ACCOUNT_ID/${BILLING_ACCOUNT_ID}/g; s/TEST_PROJECT_NUMBER/${TEST_PROJECT_NUMBER}/g" \
+    tests/budget_alert.json.template > tests/budget_alert.json
+
+msg=$(cat tests/budget_alert.json)
+
+# Publish the message
+gcloud pubsub topics publish $BILLING_ALERT_TOPIC \
+    --project="$GOOGLE_CLOUD_PROJECT" \
+    --message="$msg" \
+    --attribute="budgetId=my-test-budget-id"
+
+# Now we can read the Cloud Function logs
+```
 
 ## Useful References
 

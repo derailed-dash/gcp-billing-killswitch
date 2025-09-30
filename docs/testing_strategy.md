@@ -16,30 +16,6 @@ Given the critical and destructive nature of the 'Kill GCP Project Billing' Clou
     *   **Dedicated Test Project:** Create a completely isolated Google Cloud project specifically for testing this function. This project should be easily disposable. Create a `budget-alerts` Pub/Sub topic in this project.
     *   **Real Pub/Sub Topic:** Deploy your Cloud Function to this test project, ensuring it's subscribed to a *real* Pub/Sub topic within that project.
     *   **Simulated Budget Alerts:** Manually publish Pub/Sub messages to this topic that precisely mimic the structure of a Cloud Billing budget alert. \
-        ```bash
-        # Make sure we're using a test project before proceeding
-        export GOOGLE_CLOUD_PROJECT=$DEV_GOOGLE_CLOUD_PROJECT
-        export TEST_PROJECT_NUMBER=$(gcloud projects describe $GOOGLE_CLOUD_PROJECT --format="value(projectNumber)")
-
-        # Deploy the Cloud Function to the test project
-        source scripts/deploy.sh
-
-        # CREATE TEST MSG
-        # Replace placeholders using values from env vars
-        sed "s/BILLING_ACCOUNT_ID/${BILLING_ACCOUNT_ID}/g; s/TEST_PROJECT_NUMBER/${TEST_PROJECT_NUMBER}/g" \
-            tests/budget_alert.json.template > tests/budget_alert.json
-
-        msg=$(cat tests/budget_alert.json)
-
-        # Publish the message
-        gcloud pubsub topics publish $PUB_SUB_TOPIC \
-            --project="$GOOGLE_CLOUD_PROJECT" \
-            --message="$msg" \
-            --attribute="budgetId=my-test-budget-id"
-
-        # Now we can read the Cloud Function logs
-        ```
-
         *   **Success Case:** Publish a message indicating a budget has been exceeded for a *test project* (a project within your test billing account that you are willing to have billing disabled for). Verify that billing is successfully disabled for that test project.
         *   **Failure Cases:** Publish messages for scenarios where billing *should not* be disabled (e.g., cost not exceeding budget, missing `budgetId`, missing `billingAccountId`, budget not scoped to any project). Verify that billing remains enabled and appropriate logs are generated.
     *   **Verification:** Use `gcloud` commands or the Cloud Console to confirm:

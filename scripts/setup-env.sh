@@ -78,3 +78,4 @@ echo "Syncing python dependencies with uv..."
 uv sync --dev
 
 echo -e "\n${GREEN}✅ Environment setup complete with project ${BOLD}$GOOGLE_CLOUD_PROJECT${RESET}${GREEN}. Your shell is now configured.${RESET}"
+echo -e "\n${YELLOW}❓ If you're working with your DEV or STAGING project, now run \"export GOOGLE_CLOUD_PROJECT=$DEV_GOOGLE_CLOUD_PROJECT\"${RESET}"
