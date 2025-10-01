@@ -22,14 +22,14 @@
     - [x] Deploy the Cloud Function to the integration test project, initially with `SIMULATE_DEACTIVATION=true`.
     - [ ] Develop and execute simulated Pub/Sub messages for success and failure cases.
     - [ ] Verify function behavior and logging output in simulation mode.
-    - [ ] (Optional) Deploy without `SIMULATE_DEACTIVATION` for actual billing deactivation tests on a disposable project.
+    - [ ] Deploy without `SIMULATE_DEACTIVATION` for actual billing deactivation tests on a disposable project.
     - [ ] Verify function behavior and billing status in the integration test project.
 - [ ] Implement End-to-End Testing (Staging Environment with Real Budget)
     - [ ] Set up a dedicated test project and test billing account for end-to-end testing.
     - [ ] Configure a real Cloud Billing budget with a low threshold in the staging environment.
     - [ ] Deploy the Cloud Function to the staging environment, initially with `SIMULATE_DEACTIVATION=true`.
     - [ ] Incur test costs to trigger the budget alert and verify simulation logs.
-    - [ ] (Optional) Deploy without `SIMULATE_DEACTIVATION` for actual billing deactivation tests on a disposable project.
+    - [ ] Deploy without `SIMULATE_DEACTIVATION` for actual billing deactivation tests on a disposable project.
     - [ ] Verify the entire workflow, from budget alert to billing disablement.
 - [ ] Implement Monitoring and Alerting (Production Deployment)
     - [ ] Ensure comprehensive Cloud Logging for the function.

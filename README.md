@@ -92,9 +92,14 @@ The project is structured as follows:
 
 ## IAM Permissions
 
-The Cloud Function's **runtime service account** requires 
-- The `Billing Account Administrator` role on the Cloud Billing Account.
-- Or, on the projects to be disconnected: `Project Billing Manager` and one of `Project Viewer` or `Project Owner`
+The Cloud Function's **runtime service account** requires one of the following IAM role configurations:
+
+1.  **On the Cloud Billing Account:**
+    - `roles/billing.admin` (Billing Account Administrator)
+
+2.  **On each target Project to be disconnected:**
+    - `roles/billing.projectBillingManager` (Project Billing Manager)
+    - AND `roles/resourcemanager.projectOwner` (Project Owner) or `roles/viewer` (Project Viewer)
 
 ## Deployment
 
@@ -145,23 +150,10 @@ fi
 # Service Account IAM for Billing Account
 gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT_ID}" \
   --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
-  --role="roles/billing.user" \
-  --project="${GOOGLE_CLOUD_PROJECT}"
-
-gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT_ID}" \
-  --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
-  --role="roles/billing.viewer" \
-  --project="${GOOGLE_CLOUD_PROJECT}"  
-
-gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT_ID}" \
-  --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
-  --role="roles/billing.projectCostsManager" \
+  --role="roles/billing.admin" \
   --project="${GOOGLE_CLOUD_PROJECT}"
 
 # Service Account IAM for Function-Hosting Project
-gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
-  --member="serviceAccount:$SERVICE_ACCOUNT_EMAIL" \
-  --role="roles/billing.projectManager"
 
 gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
   --member="serviceAccount:$SERVICE_ACCOUNT_EMAIL" \
