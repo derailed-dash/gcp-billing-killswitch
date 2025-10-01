@@ -40,6 +40,9 @@ This is a simple, event-driven architecture:
 2.  A **Pub/Sub topic** receives the notification message.
 3.  A **Cloud Run Function (2nd Gen)** is subscribed to this topic. When a message is published, the function is triggered.
 4.  The function parses the incoming message to identify the associated project(s), and then uses the **Cloud Billing API** to detach the project from its billing account.
+<br><br>
+
+![kill-switch-arch.png](docs/kill-switch-arch.png)
 
 ## Considerations and Options
 
