@@ -14,13 +14,18 @@ When billing is disconnected you will be able to safely investigate the root cau
 
 - [Repo Metadata](#repo-metadata)
 - [Architecture](#architecture)
-- [Prerequisites](#prerequisites)
-- [Local Environment Setup](#local-environment-setup)
+- [Considerations and Options](#considerations-and-options)
+- [Environment Setup](#environment-setup)
 - [Project Structure](#project-structure)
 - [IAM Permissions](#iam-permissions)
-- [Unit Testing](#unit-testing)
 - [Deployment](#deployment)
+  - [Every Session](#every-session)
+  - [One-Time Project Setup (Per Project)](#one-time-project-setup-per-project)
+  - [Deploying the Cloud Run Function](#deploying-the-cloud-run-function)
 - [Useful Commands](#useful-commands)
+- [Testing](#testing)
+  - [Unit Testing](#unit-testing)
+  - [Integration Testing](#integration-testing)
 - [Useful References](#useful-references)
 
 ## Repo Metadata
