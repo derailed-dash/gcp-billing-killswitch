@@ -1,8 +1,14 @@
-# Google Cloud Kill Project Billing
+# GCP Billing Killswitch
 
-This project contains a Google Cloud Run Function (2nd Gen) designed to automatically disable billing for a Google Cloud project. It is triggered by a Pub/Sub message, which is published by a Cloud Billing budget alert.
+This repo contains a reusable solution to kill billing on any projects associated with a given budget and budget alert. 
+If your budget is exceeded, the resulting budget alert will cause all projects associated with that alert to be detached 
+from the billing account. This immediately results in all paid resources in the project from being consumed.
 
-**⚠️ Warning: This is a destructive action.** Disconnecting a project from its billing account will stop all paid services. The project enters a 30-day grace period. If billing is not re-enabled within this period, the project and all its resources may be **permanently deleted**.
+The solution uses a Google Cloud Run Function (2nd Gen) triggered as a result of a Cloud Billing budget alert message, via Pub/Sub.
+
+**⚠️ Warning: Disconnecting a project from its billing account will stop all paid services.** 
+
+When billing is disconnected you will be able to safely investigate the root cause of your costs and take appropriate action, before re-connected billing.
 
 ## Table of Contents
 
@@ -23,30 +29,19 @@ Author: Darren Lester
 
 ## Architecture
 
-The architecture is simple and event-driven:
+This is a simple, event-driven architecture:
 
 1.  A **Cloud Billing budget** is configured to send a notification to a Pub/Sub topic when a project's spending exceeds a defined threshold.
 2.  A **Pub/Sub topic** receives the notification message.
 3.  A **Cloud Run Function (2nd Gen)** is subscribed to this topic. When a message is published, the function is triggered.
-4.  The function parses the incoming message to identify the project, and then uses the **Cloud Billing API** to detach the project from its billing account, effectively disabling billing.
+4.  The function parses the incoming message to identify the associated project(s), and then uses the **Cloud Billing API** to detach the project from its billing account.
 
-## Prerequisites
+## Considerations and Options
 
-Before deploying, ensure you have the following:
+- I recommend deploying the Pub/Sub topic and Cloud Run Function to a dedicated `FinOps-Admin` project. With this approach, the project(s) to be monitored are decoupled from the administration project that handles the billing detachment. But if you only plan to implement this solution for one or two projects then you can deploy the topic and Cloud Run Function directly to those projects.
+- When you create your budget alerts (within Google Cloud Billing), each budget must be associated with one or more monitored projects. When the killswitch fires, it will detach ALL the projects associated with a particular budget. So you should set up budgets with appropriate granularity.
 
-1.  **A Google Cloud project** to host this function (e.g., a central `finops-admin` project).
-2.  **APIs Enabled:** In your host project, the following APIs must be enabled:
-    -   Cloud Billing API
-    -   Cloud Functions API
-    -   Cloud Build API
-    -   Eventarc API
-    -   Cloud Run API
-    
-3.  **A Pub/Sub topic** that receives notifications from your Cloud Billing budgets.
-4.  **A Cloud Billing Budget** configured to monitor a specific project and send alerts to the aforementioned Pub/Sub topic.
-5.  **Local Tools:** `gcloud` CLI and `uv` must be installed on your local machine.
-
-## Local Environment Setup
+## Environment Setup
 
 To configure your local development environment, you must first create a `.env` file and then run the provided setup script.
 
@@ -61,6 +56,10 @@ To configure your local development environment, you must first create a `.env` 
     export FUNCTION_NAME="your-function-name"
     export BILLING_ALERT_TOPIC="your-billing-alert-topic"
     export BILLING_ACCOUNT_ID="your billing ID"
+    
+    # Create a budget in Cloud Billing, and obtain its ID:
+    # gcloud billing budgets list --billing-account=$BILLING_ACCOUNT_ID --project=$GOOGLE_CLOUD_PROJECT
+    export SAMPLE_BUDGET_ID="for-testing-a-budget"
     ```
 
 2.  **Run the setup script:** Source the script to configure your shell environment. This will handle `gcloud` authentication, Python dependency installation, and virtual environment activation.
@@ -75,16 +74,20 @@ The project is structured as follows:
 
 ```
 .
+├── docs
 ├── src
-│   ├── main.py
-│   └── requirements.txt
+│   ├── main.py              # Cloud Run Function code
+│   └── requirements.txt     # dependencies for the Function
 ├── tests
+│   ├── budget_alert.json.template   # to create test alerts
 │   └── test_main.py
 ├── scripts
-│   ├── setup-env.sh
-│   └── deploy.sh
+│   └── setup-env.sh         # Local dev environment setup
 ├── .env
-└── README.md
+├── Makefile                 # Convenience tools
+├── pyproject.toml           # Python configuration
+├── TODO.md                  # Overall plan
+└── README.md                # Repo overview and instructions
 ```
 
 ## IAM Permissions
@@ -93,17 +96,9 @@ The Cloud Function's **runtime service account** requires
 - The `Billing Account Administrator` role on the Cloud Billing Account.
 - Or, on the projects to be disconnected: `Project Billing Manager` and one of `Project Viewer` or `Project Owner`
 
-## Unit Testing
-
-After setting up your environment with the `setup-env.sh` script, you can run the unit tests:
-
-```bash
-make test
-```
-
 ## Deployment
 
-Once your environment is configured and you have populated the `.env` file, you can deploy the function by first generating the `requirements.txt` and then:
+Deploy the function and pre-reqs as follows:
 
 ### Every Session
 
@@ -130,16 +125,12 @@ gcloud services enable --project=$GOOGLE_CLOUD_PROJECT \
   logging.googleapis.com \
   billingbudgets.googleapis.com
 
-# First create the topic.
-# Then connect your Cloud Billing budget to the Pub/Sub topic in the Cloud Console.
+# Create the Pub/Sub topic.
+# Then CONNECT your Cloud Billing budget to the Pub/Sub topic in the Billing area of the Google Cloud Console.
 gcloud pubsub topics add-iam-policy-binding "${BILLING_ALERT_TOPIC}" \                                                                    │
   --member="serviceAccount:cloud-billing-pubsub-publisher@gcp-sa-billing.iam.gserviceaccount.com" \                                       │
   --role="roles/pubsub.publisher" \                                                                                                       │
   --project="${GOOGLE_CLOUD_PROJECT}"                                                                                                     │
-
-# Define service account variables
-SERVICE_ACCOUNT_NAME="${FUNCTION_NAME}-sa"
-SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
 
 # Create service account if it doesn't exist
 if ! gcloud iam service-accounts describe "${SERVICE_ACCOUNT_EMAIL}" --project="${GOOGLE_CLOUD_PROJECT}" &> /dev/null; then
@@ -193,9 +184,10 @@ gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
 
 Note: for testing purposes, you can deploy the function in a simulation mode 
 where it will log that billing *would have been disabled* without actually making the API call to detach the project from its billing account. 
-This is controlled by the `SIMULATE_DEACTIVATION` environment variable.
+This is controlled by the `SIMULATE_DEACTIVATION` environment variable. Comment this line as required.
 
 ```bash
+# Deploy the Cloud Run Function
 gcloud functions deploy "$FUNCTION_NAME" \
   --gen2 \
   --runtime=python312 \
@@ -221,11 +213,19 @@ For full command options and usage, refer to the [Makefile](Makefile).
 
 ## Testing
 
-We can send a message that resembles a budget alert, like this:L
+### Unit Testing
+
+After setting up your environment with the `setup-env.sh` script, you can run the unit tests:
 
 ```bash
-# Make sure we're using a test project before proceeding
-export GOOGLE_CLOUD_PROJECT=$DEV_GOOGLE_CLOUD_PROJECT
+make test
+```
+
+### Integration Testing
+
+We can send a message that mimics a budget alert, like this:
+
+```bash
 export TEST_PROJECT_NUMBER=$(gcloud projects describe $GOOGLE_CLOUD_PROJECT --format="value(projectNumber)")
 
 # CREATE TEST MSG by replacing placeholders in the template using values from env vars
@@ -234,15 +234,15 @@ sed "s/BILLING_ACCOUNT_ID/${BILLING_ACCOUNT_ID}/g; s/TEST_PROJECT_NUMBER/${TEST_
 
 msg=$(cat tests/budget_alert.json)
 
-# Ideally, create a budget alert for this test project
+# Ideally, create a budget alert for this test project, and store its ID in your .env
 # Then publish the test message
 gcloud pubsub topics publish $BILLING_ALERT_TOPIC \
     --project="$GOOGLE_CLOUD_PROJECT" \
     --message="$msg" \
     --attribute="budgetId=$SAMPLE_BUDGET_ID"
-
-# Now we can read the Cloud Function logs
 ```
+
+Now review Cloud Logging to verify the Cloud Run Function was triggered as is working as expected.
 
 ## Useful References
 

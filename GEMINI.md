@@ -1,4 +1,4 @@
-# Project: Kill-GCP-Project-Billing
+# Project: GCP Billing Killswitch
 
 ---
 ***IMPORTANT: Run this check at the start of EVERY session!***
@@ -17,7 +17,7 @@ Note that failures with Google Cloud are likely if this script has not been run.
 
 ## Project Overview
 
-The goal of this project is to create a Google Cloud Run Function (2nd Gen) designed to automatically disable billing for a Google Cloud project. It is triggered by a Pub/Sub message, which is published by a Cloud Billing budget alert.
+The goal of this project is to create a Google Cloud Run Function (2nd Gen) designed to automatically disable billing for a Google Cloud project. It is triggered by a Pub/Sub message, which is published by a Cloud Billing budget alert. See the `README.md` for further details.
 
 ## Building and Running
 
@@ -27,13 +27,13 @@ The goal of this project is to create a Google Cloud Run Function (2nd Gen) desi
 - **Google Cloud SDK:** For interacting with GCP services
 - **make:** For running common development tasks
 
-Project dependencies are managed in `pyproject.toml` and can be installed using `uv`. The `make` commands streamline many `uv` and `adk` commands.
+Project dependencies are managed in `pyproject.toml` and can be installed using `uv`. The `make` commands streamline many commands.
 
-Note that the Google Cloud Run Function requires its own `requirements.txt`. This is created from `pyproject.toml` when we run `make requirements`.
+Note that the Google Cloud Run Function requires its own `requirements.txt`. This should be populated using the core dependencies listed in `pyproject.toml`.
 
 ## Important References
 
-Before offering advice, make sure you have read these URLs. Use the `webFetch` tool to read the content:
+Before offering advice, make sure you have read these URLs for additional context. Use the `webFetch` tool to read the content:
 
 - [Create, edit, or delete budgets and budget alerts](https://cloud.google.com/billing/docs/how-to/budgets)
 - [https://cloud.google.com/blog/products/gcp/better-cost-control-with-google-cloud-billing-programmatic-notifications](https://cloud.google.com/blog/products/gcp/better-cost-control-with-google-cloud-billing-programmatic-notifications)

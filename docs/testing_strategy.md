@@ -1,6 +1,6 @@
-## Testing Strategy for Kill GCP Project Billing Function
+## Testing Strategy for GCP Billing Killswitch
 
-Given the critical and destructive nature of the 'Kill GCP Project Billing' Cloud Function, a robust, multi-layered testing strategy is essential to ensure its reliability and safety.
+Given the critical and destructive nature of the 'GCP Billing Killswitch' Cloud Function, a robust, multi-layered testing strategy is essential to ensure its reliability and safety.
 
 ### 1. Unit Testing (Already Implemented)
 
