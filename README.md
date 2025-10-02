@@ -111,24 +111,21 @@ The Cloud Function's **runtime service account** requires one of the following I
 
 ## Deployment
 
-Deploy the function and pre-reqs as follows:
-
-### Every Session
+Run the following commands to setup the service account, Pub/Sub topic and Cloud Run function in your specified
+host project.
 
 ```bash
+#####################################################
+### Do these steps for any development session ######
 source scripts/setup-env.sh
 
 # If we're working with DEV project
 export GOOGLE_CLOUD_PROJECT=$DEV_GOOGLE_CLOUD_PROJECT
 
-# Define service account variables
-SERVICE_ACCOUNT_NAME="${FUNCTION_NAME}-sa"
-SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
-```
+export SERVICE_ACCOUNT_NAME="${FUNCTION_NAME}-sa"
+export SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
+#####################################################
 
-### One-Time Project Setup (Per Project)
-
-```bash
 # Enable APIs
 gcloud services enable --project=$GOOGLE_CLOUD_PROJECT \
   cloudbuild.googleapis.com \
@@ -139,11 +136,7 @@ gcloud services enable --project=$GOOGLE_CLOUD_PROJECT \
   billingbudgets.googleapis.com
 
 # Create the Pub/Sub topic.
-# Then CONNECT your Cloud Billing budget to the Pub/Sub topic in the Billing area of the Google Cloud Console.
-gcloud pubsub topics add-iam-policy-binding "${BILLING_ALERT_TOPIC}" \                                                                    │
-  --member="serviceAccount:cloud-billing-pubsub-publisher@gcp-sa-billing.iam.gserviceaccount.com" \                                       │
-  --role="roles/pubsub.publisher" \                                                                                                       │
-  --project="${GOOGLE_CLOUD_PROJECT}"                                                                                                     │
+gcloud pubsub topics create $BILLING_ALERT_TOPIC --project=$GOOGLE_CLOUD_PROJECT
 
 # Create service account if it doesn't exist
 if ! gcloud iam service-accounts describe "${SERVICE_ACCOUNT_EMAIL}" --project="${GOOGLE_CLOUD_PROJECT}" &> /dev/null; then
@@ -178,15 +171,7 @@ gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
 gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
   --member="serviceAccount:$SERVICE_ACCOUNT_EMAIL" \
   --role="roles/pubsub.subscriber"
-```
 
-### Deploying the Cloud Run Function
-
-Note: for testing purposes, you can deploy the function in a simulation mode 
-where it will log that billing *would have been disabled* without actually making the API call to detach the project from its billing account. 
-This is controlled by the `SIMULATE_DEACTIVATION` environment variable. Comment this line as required.
-
-```bash
 # Deploy the Cloud Run Function
 gcloud functions deploy "$FUNCTION_NAME" \
   --gen2 \
@@ -197,8 +182,15 @@ gcloud functions deploy "$FUNCTION_NAME" \
   --entry-point=disable_billing_for_project \
   --trigger-topic="$BILLING_ALERT_TOPIC" \
   --service-account="${SERVICE_ACCOUNT_EMAIL}" \
-  --set-env-vars SIMULATE_DEACTIVATION=true # Comment to disable simulation mode
+  --set-env-vars SIMULATE_DEACTIVATION=true # Comment to disable simulation mode  
 ```
+
+### Deploying the Cloud Run Function
+
+Note: for testing purposes, you can deploy the function in a simulation mode 
+where it will log that billing *would have been disabled* without actually making the API call to detach the project from its billing account. 
+This is controlled by the `SIMULATE_DEACTIVATION` environment variable. Comment this line as required.
+
 
 ## Useful Commands
 
