@@ -16,9 +16,11 @@ import json
 import os
 
 import functions_framework
+from google.api_core import exceptions
 from google.cloud import billing_v1, logging
 from google.cloud.billing.budgets_v1 import BudgetServiceClient
 from cloudevents.http.event import CloudEvent
+
 
 # Set up logging
 logging_client = logging.Client()
@@ -84,11 +86,6 @@ def disable_billing_for_project(cloud_event: CloudEvent):
         print(f"Budget exceeded for project: {project_id}. Disabling billing.")
         logger.log_text(f"Budget exceeded for project: {project_id}. Disabling billing.")
         
-        project_billing_info = {
-            "name": f"projects/{project_id}/billingInfo",
-            "billing_account_name": "",  # Setting to an empty string disables billing
-        }
-
         # Check for simulation mode
         simulate_deactivation = os.getenv("SIMULATE_DEACTIVATION", "false").lower() == "true"
 
@@ -96,10 +93,34 @@ def disable_billing_for_project(cloud_event: CloudEvent):
             print(f"SIMULATION MODE: Billing would have been disabled for project {project_id}.")
             logger.log_text(f"SIMULATION MODE: Billing would have been disabled for project {project_id}.")
         else:
-            try:
-                billing_client.update_project_billing_info(project_billing_info)
-                print(f"Successfully disabled billing for project {project_id}.")
-                logger.log_text(f"Successfully disabled billing for project {project_id}.")
-            except Exception as e:
-                print(f"Error disabling billing for project {project_id}: {e}")
-                logger.log_text(f"Error disabling billing for project {project_id}: {e}", severity="ERROR")
+            _disable_billing_for_project(project_id)
+
+def _disable_billing_for_project(project_id: str) -> None:
+    """Disable billing for a project by removing its billing account.
+
+    Args:
+        project_id: ID of the project to disable billing for.
+    """
+    project_name = f"projects/{project_id}"
+
+    # Find more information about `updateBillingInfo` API method here:
+    # https://cloud.google.com/billing/docs/reference/rest/v1/projects/updateBillingInfo
+    try:
+        # To disable billing set the `billing_account_name` field to empty
+        project_billing_info = billing_v1.ProjectBillingInfo(
+            billing_account_name=""
+        )
+
+        billing_client.update_project_billing_info(
+            name=project_name,
+            project_billing_info=project_billing_info
+        )
+
+        print(f"Successfully disabled billing for project {project_id}.")
+        logger.log_text(f"Successfully disabled billing for project {project_id}")
+    except exceptions.PermissionDenied as e:
+        print("Failed to disable billing, check permissions.")
+        logger.log_text(f"Failed to disable billing for {project_name}, check permissions: {e}", severity="ERROR")
+    except Exception as e:
+        print(f"Error disabling billing for project {project_name}: {e}")
+        logger.log_text(f"Error disabling billing for project {project_name}: {e}", severity="ERROR")        
