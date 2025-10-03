@@ -8,6 +8,16 @@ The function parses the incoming Pub/Sub message to identify the associated proj
 and then uses the Cloud Billing API to detach the project from its billing account, 
 effectively disabling billing.
 
+The Pub/Sub message is expected to have the following format:
+
+- **Message Payload (JSON):**
+  - `costAmount` (float): The amount of cost that has been incurred.
+  - `budgetAmount` (float): The budgeted amount.
+  - `billingAccountId` (str): The ID of the billing account.
+
+- **Message Attributes:**
+  - `budgetId` (str): The ID of the budget.
+
 **⚠️ Warning: This is a destructive action.** Disconnecting a project from its billing account will 
 stop all paid services.
 """
@@ -28,7 +38,6 @@ logging_client.setup_logging() # Configure a Cloud Logging handler and integrate
 
 app_name = "billing-killswitch"
 logger = logging_client.logger(app_name)
-logging_client.setup_logging()
 
 billing_client = billing_v1.CloudBillingClient()
 budget_client = BudgetServiceClient()

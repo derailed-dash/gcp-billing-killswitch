@@ -1,11 +1,11 @@
 
 import base64
 import json
-import logging
 import unittest
 from unittest.mock import MagicMock, PropertyMock, patch
 
 from google.cloud.billing_v1.types import ProjectBillingInfo
+
 from main import disable_billing_for_projects
 
 
@@ -196,5 +196,7 @@ class TestDisableBilling(unittest.TestCase):
         )
 
 
-if __name__ == "__main__":
-    unittest.main()
+    def tearDown(self):
+        """Close the logging client after each test."""
+        from main import logging_client
+        logging_client.close()
