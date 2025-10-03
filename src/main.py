@@ -13,87 +13,86 @@ the project and all its resources may be **permanently deleted**.
 """
 import base64
 import json
+import logging
 import os
 
 import functions_framework
-from google.api_core import exceptions
-from google.cloud import billing_v1, logging
-from google.cloud.billing.budgets_v1 import BudgetServiceClient
+import google.cloud.logging
 from cloudevents.http.event import CloudEvent
+from google.api_core import exceptions
+from google.cloud import billing_v1
+from google.cloud.billing.budgets_v1 import BudgetServiceClient
 
+logging_client = google.cloud.logging.Client()
+logging_client.setup_logging() # Configure a Cloud Logging handler and integrate it with Python's logging module
 
-# Set up logging
-logging_client = logging.Client()
-APP_NAME = "billing-disabler"
-logger = logging_client.logger(APP_NAME)
+app_name = "billing-killswitch"
+logger = logging_client.logger(app_name)
+logging_client.setup_logging()
 
 billing_client = billing_v1.CloudBillingClient()
 budget_client = BudgetServiceClient()
+
 
 @functions_framework.cloud_event
 def disable_billing_for_project(cloud_event: CloudEvent):
     """
     Cloud Function to disable billing for a project based on a Pub/Sub message from a billing alert.
     """
-    logger.log_text("Function invoked from Pub/Sub message.", severity="ERROR")
-    
+    logging.info(f"{app_name} Cloud Run Function invoked from Pub/Sub message.")
+
     # The Pub/Sub message is base64-encoded
     message_data = base64.b64decode(cloud_event.data["message"]["data"]).decode("utf-8")
     message_json = json.loads(message_data)
-    attributes = cloud_event.data["message"]["attributes"]    
-    
+    attributes = cloud_event.data["message"]["attributes"]
+
     cost_amount = message_json["costAmount"]
     budget_amount = message_json["budgetAmount"]
     billing_account_id = message_json.get("billingAccountId", "")
-    
+
     # Get the budget ID from the message attributes
     budget_id = attributes.get("budgetId", {})
     if not billing_account_id:
-        print("No billingAccountId found in message payload.")
-        logger.log_text("No billingAccountId found in message payload.", severity="ERROR")
+        logging.error("No billingAccountId found in message payload.")
         return
 
     # Only disable billing if the cost has exceeded the budget
     if cost_amount <= budget_amount:
-        print(f"Cost ({cost_amount}) has not exceeded budget ({budget_amount}). No action taken.")
-        logger.log_text(f"Cost ({cost_amount}) has not exceeded budget ({budget_amount}). No action taken.")
+        logging.info(f"Cost ({cost_amount}) has not exceeded budget ({budget_amount}). No action taken.")
         return
 
     if not budget_id:
-        print("No budgetId found in message attributes. Exiting.")
-        logger.log_text("No budgetId found in message attributes.", severity="ERROR")
+        logging.error("No budgetId found in message attributes.")
         return
 
     # Use the budget ID to get the budget details
     budget_name = f"billingAccounts/{billing_account_id}/budgets/{budget_id}"
-    
+
     try:
+        logging.info(f"Cost {cost_amount} has exceeded budget {budget_amount} for budget {budget_id}.")
         budget = budget_client.get_budget(name=budget_name)
     except Exception as e:
-        print(f"Error getting budget details: {e}")
-        logger.log_text(f"Error getting budget details: {e}", severity="ERROR")
+        logging.error(f"Error getting budget details: {e}")
         return
 
     # The budget filter contains the projects the budget is scoped to
     if not budget.budget_filter or not budget.budget_filter.projects:
-        print(f"Budget {budget_id} is not scoped to any projects. No action taken.")
-        logger.log_text(f"Budget {budget_id} is not scoped to any projects. No action taken.", severity="WARNING")
+        logging.warning(f"Budget {budget_id} is not scoped to any projects. No action taken.")
         return
 
     project_ids = [p.split("/")[1] for p in budget.budget_filter.projects]
 
     for project_id in project_ids:
-        print(f"Budget exceeded for project: {project_id}. Disabling billing.")
-        logger.log_text(f"Budget exceeded for project: {project_id}. Disabling billing.")
-        
+        logging.info(f"Disabling billing for {project_id}...")
+
         # Check for simulation mode
         simulate_deactivation = os.getenv("SIMULATE_DEACTIVATION", "false").lower() == "true"
 
         if simulate_deactivation:
-            print(f"SIMULATION MODE: Billing would have been disabled for project {project_id}.")
-            logger.log_text(f"SIMULATION MODE: Billing would have been disabled for project {project_id}.")
+            logging.info(f"SIMULATION MODE: Billing would have been disabled for project {project_id}.")
         else:
             _disable_billing_for_project(project_id)
+
 
 def _disable_billing_for_project(project_id: str) -> None:
     """Disable billing for a project by removing its billing account.
@@ -107,20 +106,11 @@ def _disable_billing_for_project(project_id: str) -> None:
     # https://cloud.google.com/billing/docs/reference/rest/v1/projects/updateBillingInfo
     try:
         # To disable billing set the `billing_account_name` field to empty
-        project_billing_info = billing_v1.ProjectBillingInfo(
-            billing_account_name=""
-        )
+        project_billing_info = billing_v1.ProjectBillingInfo(billing_account_name="")
+        billing_client.update_project_billing_info(name=project_name, project_billing_info=project_billing_info)
 
-        billing_client.update_project_billing_info(
-            name=project_name,
-            project_billing_info=project_billing_info
-        )
-
-        print(f"Successfully disabled billing for project {project_id}.")
-        logger.log_text(f"Successfully disabled billing for project {project_id}")
+        logging.info(f"Successfully disabled billing for project {project_id}")
     except exceptions.PermissionDenied as e:
-        print("Failed to disable billing, check permissions.")
-        logger.log_text(f"Failed to disable billing for {project_name}, check permissions: {e}", severity="ERROR")
+        logging.error(f"Failed to disable billing for {project_name}, check permissions: {e}")
     except Exception as e:
-        print(f"Error disabling billing for project {project_name}: {e}")
-        logger.log_text(f"Error disabling billing for project {project_name}: {e}", severity="ERROR")        
+        logging.error(f"Error disabling billing for project {project_name}: {e}")
