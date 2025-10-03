@@ -1,15 +1,15 @@
 """
-This script contains a Google Cloud Function designed to automatically disable billing for a Google Cloud project.
+This script contains a Google Cloud Function designed to automatically disable billing for 
+any Google Cloud projects associated with an exceeded budget.
 
 The function is triggered by a Pub/Sub message, which is published by a Cloud Billing budget alert. 
 When a project's spending exceeds a defined threshold, the alert is sent, and this function is invoked.
-
-The function parses the incoming Pub/Sub message to identify the project and then uses the Cloud Billing API 
-to detach the project from its billing account, effectively disabling billing.
+The function parses the incoming Pub/Sub message to identify the associated project(s)
+and then uses the Cloud Billing API to detach the project from its billing account, 
+effectively disabling billing.
 
 **⚠️ Warning: This is a destructive action.** Disconnecting a project from its billing account will 
-stop all paid services. The project enters a 30-day grace period. If billing is not re-enabled within this period, 
-the project and all its resources may be **permanently deleted**.
+stop all paid services.
 """
 import base64
 import json
