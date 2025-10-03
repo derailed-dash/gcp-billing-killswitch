@@ -17,16 +17,17 @@
 - [x] Fix unit tests
 - [x] Create the Pub/Sub with gcloud
 - [x] Fix Budget Client 403 with SA
-- [-] Implement Integration Testing (Staging Environment)
+- [x] Implement Integration Testing (Staging Environment)
     - [x] Set up a dedicated test project for integration testing.
     - [x] Deploy the Cloud Function to the integration test project, initially with `SIMULATE_DEACTIVATION=true`.
     - [x] Develop and execute simulated Pub/Sub messages for budget exceeded.
     - [x] Verify function behavior and logging output in simulation mode.
     - [x] Deploy without `SIMULATE_DEACTIVATION` for actual billing deactivation tests on a disposable project.
     - [x] Test with alert below 100%.
-- [ ] Implement End-to-End Testing (Staging Environment with Real Budget)
-    - [ ] Configure a real Cloud Billing budget with a low threshold in the staging environment.
-    - [ ] Deploy the Cloud Function to the staging environment, initially with `SIMULATE_DEACTIVATION=true`.
-    - [ ] Incur test costs to trigger the budget alert and verify simulation logs.
+- [-] Implement End-to-End Testing (Staging Environment with Real Budget)
+    - [x] Configure a real Cloud Billing budget with a low threshold in the staging environment.
+    - [x] Deploy the Cloud Function to the staging environment, initially with `SIMULATE_DEACTIVATION=true`.
+    - [x] Incur test costs to trigger the budget alert and verify simulation logs.
     - [ ] Deploy without `SIMULATE_DEACTIVATION` for actual billing deactivation tests on a disposable project.
     - [ ] Verify the entire workflow, from budget alert to billing disablement.
+- [ ] Create Terraform deployment
