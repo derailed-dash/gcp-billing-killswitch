@@ -180,7 +180,7 @@ gcloud functions deploy "$FUNCTION_NAME" \
   --project="$GOOGLE_CLOUD_PROJECT" \
   --region="$GOOGLE_CLOUD_REGION" \
   --source=./src \
-  --entry-point=disable_billing_for_project \
+  --entry-point=disable_billing_for_projects \
   --trigger-topic="$BILLING_ALERT_TOPIC" \
   --service-account="${SERVICE_ACCOUNT_EMAIL}" \
   --set-env-vars SIMULATE_DEACTIVATION=true # Comment to disable simulation mode  
@@ -218,7 +218,7 @@ make test
 We can send a message that mimics a budget alert, like this:
 
 ```bash
-export TEST_PROJECT_NUMBER=$(gcloud projects describe $GOOGLE_CLOUD_PROJECT --format="value(projectNumber)")
+export TEST_PROJECT_NUMBER=$(gcloud projects describe $DEV_GOOGLE_CLOUD_PROJECT --format="value(projectNumber)")
 
 # CREATE TEST MSG by replacing placeholders in the template using values from env vars
 sed "s/BILLING_ACCOUNT_ID/${BILLING_ACCOUNT_ID}/g; s/TEST_PROJECT_NUMBER/${TEST_PROJECT_NUMBER}/g" \

@@ -35,9 +35,9 @@ budget_client = BudgetServiceClient()
 
 
 @functions_framework.cloud_event
-def disable_billing_for_project(cloud_event: CloudEvent):
+def disable_billing_for_projects(cloud_event: CloudEvent):
     """
-    Cloud Function to disable billing for a project based on a Pub/Sub message from a billing alert.
+    Cloud Function to disable billing for projects based on a Pub/Sub message from a billing alert.
     """
     logging.info(f"{app_name} Cloud Run Function invoked from Pub/Sub message.")
 
