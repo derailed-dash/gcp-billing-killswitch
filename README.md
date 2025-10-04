@@ -189,8 +189,7 @@ gcloud functions deploy "$FUNCTION_NAME" \
 ### Deploying the Cloud Run Function
 
 Note: for testing purposes, you can deploy the function in a simulation mode 
-where it will log that billing *would have been disabled* without actually making the API call to detach the project from its billing account. 
-This is controlled by the `SIMULATE_DEACTIVATION` environment variable. Comment this line as required.
+where it will log that billing *would have been disabled* without actually making the API call to detach the project from its billing account. This is controlled by the `SIMULATE_DEACTIVATION` environment variable.
 
 ## Useful Commands
 
