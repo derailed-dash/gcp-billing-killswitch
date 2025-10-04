@@ -68,7 +68,7 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
 
     # Only disable billing if the cost has exceeded the budget
     if cost_amount <= budget_amount:
-        logging.info(f"Budget {budget_name}: cost ({cost_amount}) has not exceeded budget ({budget_amount}). No action taken.")
+        logging.info(f"Function {app_name}, {budget_name}: {cost_amount} has not exceeded budget {budget_amount}. No action taken.")
         return
 
     # Get the budget ID and billing_account_id from the message attributes
@@ -86,21 +86,21 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
     budget_name = f"billingAccounts/{billing_account_id}/budgets/{budget_id}"
 
     try:
-        logging.info(f"Function {app_name}: Budget {budget_name} - {cost_amount} has exceeded budget {budget_amount}.")
+        logging.info(f"Function {app_name}, {budget_name}: {cost_amount} has exceeded budget {budget_amount}.")
         budget = budget_client.get_budget(name=budget_name)
     except Exception as e:
-        logging.error(f"{app_name} Function: Error getting budget details: {e}")
+        logging.error(f"Function {app_name}: Error getting budget details: {e}")
         return
 
     # The budget filter contains the projects the budget is scoped to
     if not budget.budget_filter or not budget.budget_filter.projects:
-        logging.warning(f"Function {app_name}: Budget {budget_name} is not scoped to any projects. No action taken.")
+        logging.warning(f"Function {app_name}: {budget_name} is not scoped to any projects. No action taken.")
         return
 
     project_ids = [p.split("/")[1] for p in budget.budget_filter.projects]
 
     for project_id in project_ids:
-        logging.info(f"Function {app_name}: Budget {budget_name} - Disabling billing for {project_id}...")
+        logging.info(f"Function {app_name}, {budget_name}: Disabling billing for {project_id}...")
 
         # Check for simulation mode
         simulate_deactivation = os.getenv("SIMULATE_DEACTIVATION", "false").lower() == "true"

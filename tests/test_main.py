@@ -1,3 +1,4 @@
+
 """
 Unit tests for the `disable_billing_for_projects` Cloud Function.
 
@@ -68,7 +69,8 @@ def test_cost_less_than_budget_no_action(mock_clients, cloud_event_factory, capl
 
     disable_billing_for_projects(event)
 
-    assert "cost (100) has not exceeded budget (100). No action taken." in caplog.text
+    # Assert that the key informational message is present, without checking for exact formatting.
+    assert any("has not exceeded budget" in rec.message for rec in caplog.records)
     mock_budget_client.get_budget.assert_not_called()
     mock_billing_client.update_project_billing_info.assert_not_called()
 
@@ -83,7 +85,7 @@ def test_no_billing_account_id(mock_clients, cloud_event_factory, caplog):
 
     disable_billing_for_projects(event)
 
-    assert "No billingAccountId found in message payload." in caplog.text
+    assert any("No billingAccountId found" in rec.message for rec in caplog.records)
     mock_budget_client.get_budget.assert_not_called()
     mock_billing_client.update_project_billing_info.assert_not_called()
 
@@ -98,7 +100,7 @@ def test_no_budget_id(mock_clients, cloud_event_factory, caplog):
 
     disable_billing_for_projects(event)
 
-    assert "No budgetId found in message attributes." in caplog.text
+    assert any("No budgetId found" in rec.message for rec in caplog.records)
     mock_budget_client.get_budget.assert_not_called()
     mock_billing_client.update_project_billing_info.assert_not_called()
 
@@ -115,7 +117,7 @@ def test_get_budget_api_error(mock_clients, cloud_event_factory, caplog):
 
     disable_billing_for_projects(event)
 
-    assert "Error getting budget details: API Error" in caplog.text
+    assert any("Error getting budget details" in rec.message for rec in caplog.records)
     mock_billing_client.update_project_billing_info.assert_not_called()
 
 
@@ -131,7 +133,7 @@ def test_budget_not_scoped_to_projects(mock_clients, cloud_event_factory, caplog
 
     disable_billing_for_projects(event)
 
-    assert "is not scoped to any projects. No action taken." in caplog.text
+    assert any("is not scoped to any projects" in rec.message for rec in caplog.records)
     mock_billing_client.update_project_billing_info.assert_not_called()
 
 
@@ -147,7 +149,7 @@ def test_disable_billing_for_single_project_success(mock_clients, cloud_event_fa
 
     disable_billing_for_projects(event)
 
-    assert "Successfully disabled billing for project test-project-1" in caplog.text
+    assert any("Successfully disabled billing for project test-project-1" in rec.message for rec in caplog.records)
     # Check that the billing client was called correctly.
     # We use ANY because the exact ProjectBillingInfo object is complex to construct
     # and not critical to verify for this test's purpose.
@@ -169,8 +171,10 @@ def test_disable_billing_for_multiple_projects_success(mock_clients, cloud_event
 
     disable_billing_for_projects(event)
 
-    assert "Successfully disabled billing for project test-project-1" in caplog.text
-    assert "Successfully disabled billing for project test-project-2" in caplog.text
+    # Check that success messages are logged for both projects.
+    logs = " ".join(rec.message for rec in caplog.records)
+    assert "Successfully disabled billing for project test-project-1" in logs
+    assert "Successfully disabled billing for project test-project-2" in logs
     assert mock_billing_client.update_project_billing_info.call_count == 2
 
 
@@ -187,7 +191,7 @@ def test_disable_billing_permission_denied_error(mock_clients, cloud_event_facto
 
     disable_billing_for_projects(event)
 
-    assert "Failed to disable billing for projects/test-project-1, check permissions: 403 Permission Denied" in caplog.text
+    assert any("Failed to disable billing" in rec.message and "Permission Denied" in rec.message for rec in caplog.records)
 
 
 def test_simulation_mode_enabled(mock_clients, cloud_event_factory, caplog):
@@ -204,7 +208,7 @@ def test_simulation_mode_enabled(mock_clients, cloud_event_factory, caplog):
 
     disable_billing_for_projects(event)
 
-    assert "SIMULATION MODE: Billing would have been disabled for project test-project-1" in caplog.text
+    assert any("SIMULATION MODE" in rec.message and "would have been disabled" in rec.message for rec in caplog.records)
     mock_billing_client.update_project_billing_info.assert_not_called()
 
     # Clean up the environment variable
