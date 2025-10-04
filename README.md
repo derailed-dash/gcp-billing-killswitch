@@ -220,8 +220,7 @@ We can send a message that mimics a budget alert, like this:
 export TEST_PROJECT_NUMBER=$(gcloud projects describe $DEV_GOOGLE_CLOUD_PROJECT --format="value(projectNumber)")
 
 # CREATE TEST MSG by replacing placeholders in the template using values from env vars
-sed "s/BILLING_ACCOUNT_ID/${BILLING_ACCOUNT_ID}/g; s/TEST_PROJECT_NUMBER/${TEST_PROJECT_NUMBER}/g" \
-    tests/budget_alert.json.template > tests/budget_alert.json
+sed "s/TEST_PROJECT_NUMBER/${TEST_PROJECT_NUMBER}/g" tests/budget_alert.json.template > tests/budget_alert.json
 
 msg=$(cat tests/budget_alert.json)
 
@@ -230,7 +229,7 @@ msg=$(cat tests/budget_alert.json)
 gcloud pubsub topics publish $BILLING_ALERT_TOPIC \
     --project="$GOOGLE_CLOUD_PROJECT" \
     --message="$msg" \
-    --attribute="budgetId=$SAMPLE_BUDGET_ID"
+    --attribute="budgetId=$SAMPLE_BUDGET_ID,billingAccountId=$BILLING_ACCOUNT_ID"
 ```
 
 Now review Cloud Logging to verify the Cloud Run Function was triggered as is working as expected.
