@@ -62,12 +62,13 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
     logging.debug(f"Pub/Sub message attributes: {attributes}")
     logging.debug(f"Pub/Sub message data: {message_data}")
 
+    budget_name = message_json["budgetDisplayName"]
     cost_amount = message_json["costAmount"]
     budget_amount = message_json["budgetAmount"]
 
     # Only disable billing if the cost has exceeded the budget
     if cost_amount <= budget_amount:
-        logging.info(f"Cost ({cost_amount}) has not exceeded budget ({budget_amount}). No action taken.")
+        logging.info(f"Budget {budget_name}: cost ({cost_amount}) has not exceeded budget ({budget_amount}). No action taken.")
         return
 
     # Get the budget ID and billing_account_id from the message attributes
@@ -85,7 +86,7 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
     budget_name = f"billingAccounts/{billing_account_id}/budgets/{budget_id}"
 
     try:
-        logging.info(f"Cost {cost_amount} has exceeded budget {budget_amount} for budget {budget_id}.")
+        logging.info(f"Budget {budget_name}: cost {cost_amount} has exceeded budget {budget_amount} for budget ID {budget_id}.")
         budget = budget_client.get_budget(name=budget_name)
     except Exception as e:
         logging.error(f"Error getting budget details: {e}")
@@ -93,19 +94,19 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
 
     # The budget filter contains the projects the budget is scoped to
     if not budget.budget_filter or not budget.budget_filter.projects:
-        logging.warning(f"Budget {budget_id} is not scoped to any projects. No action taken.")
+        logging.warning(f"Budget {budget_name}: Budget ID {budget_id} is not scoped to any projects. No action taken.")
         return
 
     project_ids = [p.split("/")[1] for p in budget.budget_filter.projects]
 
     for project_id in project_ids:
-        logging.info(f"Disabling billing for {project_id}...")
+        logging.info(f"Budget {budget_name}: Disabling billing for {project_id}...")
 
         # Check for simulation mode
         simulate_deactivation = os.getenv("SIMULATE_DEACTIVATION", "false").lower() == "true"
 
         if simulate_deactivation:
-            logging.info(f"SIMULATION MODE: Billing would have been disabled for project {project_id}.")
+            logging.info(f"SIMULATION MODE: Billing would have been disabled for project {project_id} for budget {budget_name}.")
         else:
             _disable_billing_for_project(project_id)
 
