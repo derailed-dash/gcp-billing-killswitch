@@ -131,7 +131,7 @@ def test_budget_not_scoped_to_projects(mock_clients, cloud_event_factory, caplog
 
     disable_billing_for_projects(event)
 
-    assert "Budget ID test-budget is not scoped to any projects. No action taken." in caplog.text
+    assert "is not scoped to any projects. No action taken." in caplog.text
     mock_billing_client.update_project_billing_info.assert_not_called()
 
 

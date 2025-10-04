@@ -52,7 +52,7 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
     """
     Cloud Function to disable billing for projects based on a Pub/Sub message from a billing alert.
     """
-    logging.info(f"{app_name} Cloud Run Function invoked from Pub/Sub message.")
+    logging.debug(f"Function {app_name} invoked from Pub/Sub message.")
 
     # The Pub/Sub message is base64-encoded
     message_data = base64.b64decode(cloud_event.data["message"]["data"]).decode("utf-8")
@@ -75,32 +75,32 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
     budget_id = attributes.get("budgetId", "")
     billing_account_id = attributes.get("billingAccountId", "")
     if not billing_account_id:
-        logging.error("No billingAccountId found in message payload.")
+        logging.error(f"Function {app_name}: No billingAccountId found in message payload.")
         return
     
     if not budget_id:
-        logging.error("No budgetId found in message attributes.")
+        logging.error(f"Function {app_name}: Function: No budgetId found in message attributes.")
         return
 
     # Use the budget ID to get the budget details
     budget_name = f"billingAccounts/{billing_account_id}/budgets/{budget_id}"
 
     try:
-        logging.info(f"Budget {budget_name}: cost {cost_amount} has exceeded budget {budget_amount} for budget ID {budget_id}.")
+        logging.info(f"Function {app_name}: Budget {budget_name} - {cost_amount} has exceeded budget {budget_amount}.")
         budget = budget_client.get_budget(name=budget_name)
     except Exception as e:
-        logging.error(f"Error getting budget details: {e}")
+        logging.error(f"{app_name} Function: Error getting budget details: {e}")
         return
 
     # The budget filter contains the projects the budget is scoped to
     if not budget.budget_filter or not budget.budget_filter.projects:
-        logging.warning(f"Budget {budget_name}: Budget ID {budget_id} is not scoped to any projects. No action taken.")
+        logging.warning(f"Function {app_name}: Budget {budget_name} is not scoped to any projects. No action taken.")
         return
 
     project_ids = [p.split("/")[1] for p in budget.budget_filter.projects]
 
     for project_id in project_ids:
-        logging.info(f"Budget {budget_name}: Disabling billing for {project_id}...")
+        logging.info(f"Function {app_name}: Budget {budget_name} - Disabling billing for {project_id}...")
 
         # Check for simulation mode
         simulate_deactivation = os.getenv("SIMULATE_DEACTIVATION", "false").lower() == "true"
@@ -126,8 +126,8 @@ def _disable_billing_for_project(project_id: str) -> None:
         project_billing_info = billing_v1.ProjectBillingInfo(billing_account_name="")
         billing_client.update_project_billing_info(name=project_name, project_billing_info=project_billing_info)
 
-        logging.info(f"Successfully disabled billing for project {project_id}")
+        logging.info(f"Function {app_name}: Successfully disabled billing for project {project_id}")
     except exceptions.PermissionDenied as e:
-        logging.error(f"Failed to disable billing for {project_name}, check permissions: {e}")
+        logging.error(f"Function {app_name}: Failed to disable billing for {project_name}, check permissions: {e}")
     except Exception as e:
-        logging.error(f"Error disabling billing for project {project_name}: {e}")
+        logging.error(f"Function {app_name}: Error disabling billing for project {project_name}: {e}")
