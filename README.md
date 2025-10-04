@@ -174,6 +174,7 @@ gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
   --role="roles/pubsub.subscriber"
 
 # Deploy the Cloud Run Function
+# Always check your SERVICE_ACCOUNT_EMAIL variable is set
 gcloud functions deploy "$FUNCTION_NAME" \
   --gen2 \
   --runtime=python312 \
