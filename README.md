@@ -128,9 +128,11 @@ export SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${GOOGLE_CLOUD_PROJECT}.ia
 
 # Enable APIs
 gcloud services enable --project=$GOOGLE_CLOUD_PROJECT \
-  cloudbilling.googleapis.com \
+  artifactregistry.googleapis.com \
   cloudbuild.googleapis.com \
+  pubsub.googleapis.com \
   eventarc.googleapis.com \
+  cloudbilling.googleapis.com \
   cloudfunctions.googleapis.com \
   run.googleapis.com \
   logging.googleapis.com \
@@ -175,22 +177,55 @@ gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
 
 # Deploy the Cloud Run Function
 # Always check your SERVICE_ACCOUNT_EMAIL variable is set
-gcloud functions deploy "$FUNCTION_NAME" \
+gcloud functions deploy $FUNCTION_NAME \
   --gen2 \
   --runtime=python312 \
   --project="$GOOGLE_CLOUD_PROJECT" \
   --region="$GOOGLE_CLOUD_REGION" \
   --source=./src \
   --entry-point=disable_billing_for_projects \
-  --trigger-topic="$BILLING_ALERT_TOPIC" \
+  --trigger-topic=$BILLING_ALERT_TOPIC \
   --service-account="${SERVICE_ACCOUNT_EMAIL}" \
   --set-env-vars LOG_LEVEL=$LOG_LEVEL,SIMULATE_DEACTIVATION=$SIMULATE_DEACTIVATION 
 ```
 
-### Deploying the Cloud Run Function
+### Deploying the Cloud Run Function in Simulate Mode
 
 Note: for testing purposes, you can deploy the function in a simulation mode 
 where it will log that billing *would have been disabled* without actually making the API call to detach the project from its billing account. This is controlled by the `SIMULATE_DEACTIVATION` environment variable.
+
+### Alternative Deployment Command - Using Gcloud Run Deploy
+
+With the evolution of Cloud Functions to Cloud Run Functions, we can now deploy using the `gcloud run deploy` command. 
+It converts the function code into a Cloud Run image with the specified base image to provide our runtime.
+However, this command does not create the Eventarc trigger for us, so we must create the trigger as a separate command.
+
+```bash
+export SERVICE_ACCOUNT_NAME="${FUNCTION_NAME}-sa"
+export SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
+
+# Create the Cloud Run Function
+gcloud run deploy $FUNCTION_NAME \
+  --base-image=python312 \
+  --project=$GOOGLE_CLOUD_PROJECT \
+  --region=$GOOGLE_CLOUD_REGION \
+  --source=./src \
+  --function=disable_billing_for_projects \
+  --no-allow-unauthenticated \
+  --max-instances=1 \
+  --service-account="${SERVICE_ACCOUNT_EMAIL}" \
+  --set-env-vars LOG_LEVEL=$LOG_LEVEL,SIMULATE_DEACTIVATION=$SIMULATE_DEACTIVATION 
+
+# Create the Eventarc Trigger, wiring our topic to the function
+gcloud eventarc triggers create ${FUNCTION_NAME}-trigger \
+    --project=$GOOGLE_CLOUD_PROJECT \
+    --location=$GOOGLE_CLOUD_REGION \
+    --destination-run-service=$FUNCTION_NAME \
+    --destination-run-region=$GOOGLE_CLOUD_REGION \
+    --event-filters="type=google.cloud.pubsub.topic.v1.messagePublished" \
+    --transport-topic=projects/$GOOGLE_CLOUD_PROJECT/topics/$BILLING_ALERT_TOPIC \
+    --service-account=$SERVICE_ACCOUNT_EMAIL
+```
 
 ## Useful Commands
 
