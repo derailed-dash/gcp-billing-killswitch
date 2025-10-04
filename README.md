@@ -119,7 +119,7 @@ host project.
 ### Do these steps for any development session ######
 source scripts/setup-env.sh
 
-# If we're working with DEV project
+# ONLY if we're working with DEV project
 export GOOGLE_CLOUD_PROJECT=$DEV_GOOGLE_CLOUD_PROJECT
 
 export SERVICE_ACCOUNT_NAME="${FUNCTION_NAME}-sa"
@@ -183,7 +183,7 @@ gcloud functions deploy "$FUNCTION_NAME" \
   --entry-point=disable_billing_for_projects \
   --trigger-topic="$BILLING_ALERT_TOPIC" \
   --service-account="${SERVICE_ACCOUNT_EMAIL}" \
-  --set-env-vars SIMULATE_DEACTIVATION=true # Comment to disable simulation mode  
+  --set-env-vars LOG_LEVEL=$LOG_LEVEL,SIMULATE_DEACTIVATION=$SIMULATE_DEACTIVATION 
 ```
 
 ### Deploying the Cloud Run Function
@@ -241,5 +241,6 @@ Now review Cloud Logging to verify the Cloud Run Function was triggered as is wo
 - [Create, edit, or delete budgets and budget alerts](https://cloud.google.com/billing/docs/how-to/budgets)
 - [https://cloud.google.com/blog/products/gcp/better-cost-control-with-google-cloud-billing-programmatic-notifications](https://cloud.google.com/blog/products/gcp/better-cost-control-with-google-cloud-billing-programmatic-notifications)
 - [Set up programmatic notifications](https://cloud.google.com/billing/docs/how-to/budgets-programmatic-notifications)
+- [Programmatic notifications: Notification format](https://cloud.google.com/billing/docs/how-to/budgets-programmatic-notifications#notification_format)
 - [Enable, disable, or change billing for a project](https://cloud.google.com/billing/docs/how-to/modify-project)
 - [Disable billing usage with notifications](https://cloud.google.com/billing/docs/how-to/disable-billing-with-notifications)

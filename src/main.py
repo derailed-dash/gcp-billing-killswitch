@@ -13,9 +13,9 @@ The Pub/Sub message is expected to have the following format:
 - **Message Payload (JSON):**
   - `costAmount` (float): The amount of cost that has been incurred.
   - `budgetAmount` (float): The budgeted amount.
-  - `billingAccountId` (str): The ID of the billing account.
 
 - **Message Attributes:**
+  - `billingAccountId` (str): The ID of the billing account.
   - `budgetId` (str): The ID of the budget.
 
 **⚠️ Warning: This is a destructive action.** Disconnecting a project from its billing account will 
@@ -33,8 +33,12 @@ from google.api_core import exceptions
 from google.cloud import billing_v1
 from google.cloud.billing.budgets_v1 import BudgetServiceClient
 
+log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
+log_level_num = getattr(logging, log_level, logging.INFO)
+
+# Configure a Cloud Logging handler and integrate it with Python's logging module
 logging_client = google.cloud.logging.Client()
-logging_client.setup_logging() # Configure a Cloud Logging handler and integrate it with Python's logging module
+logging_client.setup_logging(log_level=log_level_num) 
 
 app_name = "billing-killswitch"
 logger = logging_client.logger(app_name)
@@ -55,21 +59,24 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
     message_json = json.loads(message_data)
     attributes = cloud_event.data["message"]["attributes"]
 
+    logging.debug(f"Pub/Sub message attributes: {attributes}")
+    logging.debug(f"Pub/Sub message data: {message_data}")
+
     cost_amount = message_json["costAmount"]
     budget_amount = message_json["budgetAmount"]
-    billing_account_id = message_json.get("billingAccountId", "")
-
-    # Get the budget ID from the message attributes
-    budget_id = attributes.get("budgetId", {})
-    if not billing_account_id:
-        logging.error("No billingAccountId found in message payload.")
-        return
 
     # Only disable billing if the cost has exceeded the budget
     if cost_amount <= budget_amount:
         logging.info(f"Cost ({cost_amount}) has not exceeded budget ({budget_amount}). No action taken.")
         return
 
+    # Get the budget ID and billing_account_id from the message attributes
+    budget_id = attributes.get("budgetId", "")
+    billing_account_id = attributes.get("billingAccountId", "")
+    if not billing_account_id:
+        logging.error("No billingAccountId found in message payload.")
+        return
+    
     if not budget_id:
         logging.error("No budgetId found in message attributes.")
         return
