@@ -41,3 +41,5 @@ Before offering advice, make sure you have read these URLs for additional contex
 - [Programmatic notifications: Notification format](https://cloud.google.com/billing/docs/how-to/budgets-programmatic-notifications#notification_format)
 - [Enable, disable, or change billing for a project](https://cloud.google.com/billing/docs/how-to/modify-project)
 - [Disable billing usage with notifications](https://cloud.google.com/billing/docs/how-to/disable-billing-with-notifications)
+- [gcloud functions deploy command](https://cloud.google.com/sdk/gcloud/reference/functions/deploy)
+- [gcloud run deploy command](https://cloud.google.com/sdk/gcloud/reference/run/deploy)

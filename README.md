@@ -205,6 +205,10 @@ export SERVICE_ACCOUNT_NAME="${FUNCTION_NAME}-sa"
 export SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${GOOGLE_CLOUD_PROJECT}.iam.gserviceaccount.com"
 
 # Create the Cloud Run Function
+# Notes:
+# - Gen1 is ideal for very small functions that frequently spin-up from 0
+# - Fractional CPUs are possible with gen1, but requires concurrency to be set to 1
+# - <512MB is possible with gen1
 gcloud run deploy $FUNCTION_NAME \
   --base-image=python312 \
   --project=$GOOGLE_CLOUD_PROJECT \
@@ -212,6 +216,10 @@ gcloud run deploy $FUNCTION_NAME \
   --source=./src \
   --function=disable_billing_for_projects \
   --no-allow-unauthenticated \
+  --execution-environment=gen1 \
+  --cpu=0.2 \
+  --memory=256Mi \
+  --concurrency=1 \
   --max-instances=1 \
   --service-account="${SERVICE_ACCOUNT_EMAIL}" \
   --set-env-vars LOG_LEVEL=$LOG_LEVEL,SIMULATE_DEACTIVATION=$SIMULATE_DEACTIVATION 
@@ -278,3 +286,5 @@ Now review Cloud Logging to verify the Cloud Run Function was triggered as is wo
 - [Programmatic notifications: Notification format](https://cloud.google.com/billing/docs/how-to/budgets-programmatic-notifications#notification_format)
 - [Enable, disable, or change billing for a project](https://cloud.google.com/billing/docs/how-to/modify-project)
 - [Disable billing usage with notifications](https://cloud.google.com/billing/docs/how-to/disable-billing-with-notifications)
+- [gcloud functions deploy command](https://cloud.google.com/sdk/gcloud/reference/functions/deploy)
+- [gcloud run deploy command](https://cloud.google.com/sdk/gcloud/reference/run/deploy)
