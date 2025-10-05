@@ -68,7 +68,8 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
 
     # Only disable billing if the cost has exceeded the budget
     if cost_amount <= budget_amount:
-        logging.info(f"Function {app_name}, {budget_name}: {cost_amount} has not exceeded budget {budget_amount}. No action taken.")
+        logging.info(f"Function {app_name}, {budget_name}: "
+                     f"{cost_amount} has not exceeded budget {budget_amount}. No action taken.")
         return
 
     # Get the budget ID and billing_account_id from the message attributes
@@ -82,12 +83,12 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
         logging.error(f"Function {app_name}: Function: No budgetId found in message attributes.")
         return
 
-    # Use the budget ID to get the budget details
-    budget_name = f"billingAccounts/{billing_account_id}/budgets/{budget_id}"
+    logging.info(f"Function {app_name}, {budget_name}: {cost_amount} has exceeded budget {budget_amount}.")
 
     try:
-        logging.info(f"Function {app_name}, {budget_name}: {cost_amount} has exceeded budget {budget_amount}.")
-        budget = budget_client.get_budget(name=budget_name)
+        # Use the budget ID to get the budget details
+        full_budget_name = f"billingAccounts/{billing_account_id}/budgets/{budget_id}"
+        budget = budget_client.get_budget(name=full_budget_name)
     except Exception as e:
         logging.error(f"Function {app_name}: Error getting budget details: {e}")
         return
@@ -97,6 +98,7 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
         logging.warning(f"Function {app_name}: {budget_name} is not scoped to any projects. No action taken.")
         return
 
+    # Get all projects associated with this budget
     project_ids = [p.split("/")[1] for p in budget.budget_filter.projects]
 
     for project_id in project_ids:
