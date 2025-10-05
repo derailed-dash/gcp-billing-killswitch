@@ -24,11 +24,10 @@
     - [x] Verify function behavior and logging output in simulation mode.
     - [x] Deploy without `SIMULATE_DEACTIVATION` for actual billing deactivation tests on a disposable project.
     - [x] Test with alert below 100%.
-- [-] Implement End-to-End Testing (Staging Environment with Real Budget)
+- [x] Implement End-to-End Testing (Staging Environment with Real Budget)
     - [x] Configure a real Cloud Billing budget with a low threshold in the staging environment.
     - [x] Deploy the Cloud Function to the staging environment, initially with `SIMULATE_DEACTIVATION=true`.
     - [x] Incur test costs to trigger the budget alert and verify simulation logs.
     - [x] Deploy without `SIMULATE_DEACTIVATION` for actual billing deactivation tests on a disposable project.
     - [x] Add test to handle if billing is already disabled.
     - [x] Verify the entire workflow, from budget alert to billing disablement.
-- [ ] Create Terraform deployment
