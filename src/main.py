@@ -102,24 +102,49 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
     project_ids = [p.split("/")[1] for p in budget.budget_filter.projects]
 
     for project_id in project_ids:
-        logging.info(f"Function {app_name}, {budget_name}: Disabling billing for {project_id}...")
+        project_name = f"projects/{project_id}"
+        if _is_billing_enabled_for_project(project_name): # billing might already be disabled
+            logging.info(f"Function {app_name}, {budget_name}: Disabling billing for {project_id}...")
+            
+            # Check for simulation mode
+            simulate_deactivation = os.getenv("SIMULATE_DEACTIVATION", "false").lower() == "true"
 
-        # Check for simulation mode
-        simulate_deactivation = os.getenv("SIMULATE_DEACTIVATION", "false").lower() == "true"
-
-        if simulate_deactivation:
-            logging.info(f"SIMULATION MODE: Billing would have been disabled for project {project_id} for budget {budget_name}.")
+            if simulate_deactivation:
+                logging.info(f"SIMULATION MODE: Billing would have been disabled for project {project_id} for budget {budget_name}.")
+            else:
+                _disable_billing_for_project(project_name)
         else:
-            _disable_billing_for_project(project_id)
+            logging.info(f"Function {app_name}, {budget_name}: Billing is already disabled for project {project_id}.") 
 
+def _is_billing_enabled_for_project(project_name: str) -> bool:
+    """Determine whether billing is enabled for a project.
 
-def _disable_billing_for_project(project_id: str) -> None:
+    Args:
+        project_name: Project to check, with the format 'projects/<project_id>'.
+
+    Returns:
+        Whether project has billing enabled or not.
+        In the event that an exception occurs when retrieving the billing info,
+        assume that this is a result of billing already being disabled.
+    """
+    try:
+        logging.debug(f"Function {app_name}: Getting billing info for project '{project_name}'...")
+        response = billing_client.get_project_billing_info(name=project_name)
+
+        return response.billing_enabled
+    except Exception as e:
+        logging.warning(f"Function {app_name}: Unable to get billing info for project {project_name}."
+                        f"This could happen if the project is already disconnected from the billing account. "
+                        f"Assuming billing is disabled."
+                        f"Error message: {e}")
+        return False
+    
+def _disable_billing_for_project(project_name: str) -> None:
     """Disable billing for a project by removing its billing account.
 
     Args:
-        project_id: ID of the project to disable billing for.
+        project_name: Project to disable billing for, with the format 'projects/<project_id>'.
     """
-    project_name = f"projects/{project_id}"
 
     # Find more information about `updateBillingInfo` API method here:
     # https://cloud.google.com/billing/docs/reference/rest/v1/projects/updateBillingInfo
@@ -128,7 +153,7 @@ def _disable_billing_for_project(project_id: str) -> None:
         project_billing_info = billing_v1.ProjectBillingInfo(billing_account_name="")
         billing_client.update_project_billing_info(name=project_name, project_billing_info=project_billing_info)
 
-        logging.info(f"Function {app_name}: Successfully disabled billing for project {project_id}")
+        logging.info(f"Function {app_name}: Successfully disabled billing for project {project_name}")
     except exceptions.PermissionDenied as e:
         logging.error(f"Function {app_name}: Failed to disable billing for {project_name}, check permissions: {e}")
     except Exception as e:

@@ -169,6 +169,10 @@ gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
 
 gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
   --member="serviceAccount:$SERVICE_ACCOUNT_EMAIL" \
+  --role="roles/billing.projectManager"
+
+gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
+  --member="serviceAccount:$SERVICE_ACCOUNT_EMAIL" \
   --role="roles/run.invoker"
 
 gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \

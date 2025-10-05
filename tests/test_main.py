@@ -1,4 +1,3 @@
-
 """
 Unit tests for the `disable_billing_for_projects` Cloud Function.
 
@@ -142,6 +141,7 @@ def test_disable_billing_for_single_project_success(mock_clients, cloud_event_fa
     mock_billing_client, mock_budget_client = mock_clients
     budget = Budget(budget_filter=Filter(projects=["projects/test-project-1"]))
     mock_budget_client.get_budget.return_value = budget
+    mock_billing_client.get_project_billing_info.return_value.billing_enabled = True
     event = cloud_event_factory(
         data={"costAmount": 120, "budgetAmount": 100, "budgetDisplayName": "Test Budget"},
         attributes={"budgetId": "test-budget", "billingAccountId": "test-billing-account"},
@@ -149,7 +149,7 @@ def test_disable_billing_for_single_project_success(mock_clients, cloud_event_fa
 
     disable_billing_for_projects(event)
 
-    assert any("Successfully disabled billing for project test-project-1" in rec.message for rec in caplog.records)
+    assert any("Successfully disabled billing for project projects/test-project-1" in rec.message for rec in caplog.records)
     # Check that the billing client was called correctly.
     # We use ANY because the exact ProjectBillingInfo object is complex to construct
     # and not critical to verify for this test's purpose.
@@ -164,6 +164,7 @@ def test_disable_billing_for_multiple_projects_success(mock_clients, cloud_event
     mock_billing_client, mock_budget_client = mock_clients
     budget = Budget(budget_filter=Filter(projects=["projects/test-project-1", "projects/test-project-2"]))
     mock_budget_client.get_budget.return_value = budget
+    mock_billing_client.get_project_billing_info.return_value.billing_enabled = True
     event = cloud_event_factory(
         data={"costAmount": 120, "budgetAmount": 100, "budgetDisplayName": "Test Budget"},
         attributes={"budgetId": "test-budget", "billingAccountId": "test-billing-account"},
@@ -173,8 +174,8 @@ def test_disable_billing_for_multiple_projects_success(mock_clients, cloud_event
 
     # Check that success messages are logged for both projects.
     logs = " ".join(rec.message for rec in caplog.records)
-    assert "Successfully disabled billing for project test-project-1" in logs
-    assert "Successfully disabled billing for project test-project-2" in logs
+    assert "Successfully disabled billing for project projects/test-project-1" in logs
+    assert "Successfully disabled billing for project projects/test-project-2" in logs
     assert mock_billing_client.update_project_billing_info.call_count == 2
 
 
@@ -183,6 +184,7 @@ def test_disable_billing_permission_denied_error(mock_clients, cloud_event_facto
     mock_billing_client, mock_budget_client = mock_clients
     budget = Budget(budget_filter=Filter(projects=["projects/test-project-1"]))
     mock_budget_client.get_budget.return_value = budget
+    mock_billing_client.get_project_billing_info.return_value.billing_enabled = True
     mock_billing_client.update_project_billing_info.side_effect = exceptions.PermissionDenied("Permission Denied")
     event = cloud_event_factory(
         data={"costAmount": 120, "budgetAmount": 100, "budgetDisplayName": "Test Budget"},
@@ -191,7 +193,7 @@ def test_disable_billing_permission_denied_error(mock_clients, cloud_event_facto
 
     disable_billing_for_projects(event)
 
-    assert any("Failed to disable billing" in rec.message and "Permission Denied" in rec.message for rec in caplog.records)
+    assert any("Failed to disable billing for projects/test-project-1" in rec.message and "Permission Denied" in rec.message for rec in caplog.records)
 
 
 def test_simulation_mode_enabled(mock_clients, cloud_event_factory, caplog):
@@ -201,6 +203,7 @@ def test_simulation_mode_enabled(mock_clients, cloud_event_factory, caplog):
     mock_billing_client, mock_budget_client = mock_clients
     budget = Budget(budget_filter=Filter(projects=["projects/test-project-1"]))
     mock_budget_client.get_budget.return_value = budget
+    mock_billing_client.get_project_billing_info.return_value.billing_enabled = True
     event = cloud_event_factory(
         data={"costAmount": 120, "budgetAmount": 100, "budgetDisplayName": "Test Budget"},
         attributes={"budgetId": "test-budget", "billingAccountId": "test-billing-account"},
@@ -213,3 +216,77 @@ def test_simulation_mode_enabled(mock_clients, cloud_event_factory, caplog):
 
     # Clean up the environment variable
     del os.environ["SIMULATE_DEACTIVATION"]
+
+
+def test_billing_already_disabled(mock_clients, cloud_event_factory, caplog, non_simulation_env):
+    """Test that no action is taken if billing is already disabled for a project."""
+    mock_billing_client, mock_budget_client = mock_clients
+    
+    # Mock the budget response
+    budget = Budget(budget_filter=Filter(projects=["projects/test-project-1"]))
+    mock_budget_client.get_budget.return_value = budget
+    
+    # Mock the get_project_billing_info response to indicate billing is disabled
+    mock_billing_client.get_project_billing_info.return_value.billing_enabled = False
+    
+    event = cloud_event_factory(
+        data={"costAmount": 120, "budgetAmount": 100, "budgetDisplayName": "Test Budget"},
+        attributes={"budgetId": "test-budget", "billingAccountId": "test-billing-account"},
+    )
+
+    disable_billing_for_projects(event)
+
+    assert any("Billing is already disabled for project test-project-1" in rec.message for rec in caplog.records)
+    mock_billing_client.update_project_billing_info.assert_not_called()
+
+
+def test_billing_enabled_and_disabled_successfully(mock_clients, cloud_event_factory, caplog, non_simulation_env):
+    """Test that billing is disabled if it is currently enabled."""
+    mock_billing_client, mock_budget_client = mock_clients
+    
+    # Mock the budget response
+    budget = Budget(budget_filter=Filter(projects=["projects/test-project-1"]))
+    mock_budget_client.get_budget.return_value = budget
+    
+    # Mock the get_project_billing_info response to indicate billing is enabled
+    mock_billing_client.get_project_billing_info.return_value.billing_enabled = True
+    
+    event = cloud_event_factory(
+        data={"costAmount": 120, "budgetAmount": 100, "budgetDisplayName": "Test Budget"},
+        attributes={"budgetId": "test-budget", "billingAccountId": "test-billing-account"},
+    )
+
+    disable_billing_for_projects(event)
+
+    assert any("Successfully disabled billing for project projects/test-project-1" in rec.message for rec in caplog.records)
+    mock_billing_client.get_project_billing_info.assert_called_once_with(name="projects/test-project-1")
+    mock_billing_client.update_project_billing_info.assert_called_once_with(
+        name="projects/test-project-1",
+        project_billing_info=ANY
+    )
+
+
+def test_get_billing_info_generic_api_error_assumes_disabled(mock_clients, cloud_event_factory, caplog, non_simulation_env):
+    """
+    Test that if a generic error occurs while checking billing, it's assumed to be disabled.
+    """
+    mock_billing_client, mock_budget_client = mock_clients
+    
+    # Mock the budget response
+    budget = Budget(budget_filter=Filter(projects=["projects/test-project-1"]))
+    mock_budget_client.get_budget.return_value = budget
+    
+    # Simulate an exception when checking billing info
+    mock_billing_client.get_project_billing_info.side_effect = Exception("API Error")
+    
+    event = cloud_event_factory(
+        data={"costAmount": 120, "budgetAmount": 100, "budgetDisplayName": "Test Budget"},
+        attributes={"budgetId": "test-budget", "billingAccountId": "test-billing-account"},
+    )
+
+    disable_billing_for_projects(event)
+
+    logs = " ".join(rec.message for rec in caplog.records)
+    assert "Unable to get billing info for project" in logs
+    assert "Assuming billing is disabled" in logs
+    mock_billing_client.update_project_billing_info.assert_not_called()
