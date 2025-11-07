@@ -2,7 +2,7 @@
 
 This repo contains a reusable solution to kill billing on any projects associated with a given budget and budget alert. 
 If your budget is exceeded, the resulting budget alert will cause all projects associated with that alert to be detached 
-from the billing account. This immediately results in all paid resources in the project from being consumed.
+from the billing account. This immediately prevents all paid resources in the project from being consumed.
 
 The solution uses a Google Cloud Run Function (2nd Gen) triggered as a result of a Cloud Billing budget alert message, via Pub/Sub.
 
