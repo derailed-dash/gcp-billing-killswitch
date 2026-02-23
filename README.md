@@ -136,7 +136,8 @@ gcloud services enable --project=$GOOGLE_CLOUD_PROJECT \
   cloudfunctions.googleapis.com \
   run.googleapis.com \
   logging.googleapis.com \
-  billingbudgets.googleapis.com
+  billingbudgets.googleapis.com \
+  cloudresourcemanager.googleapis.com
 
 # Create the Pub/Sub topic.
 gcloud pubsub topics create $BILLING_ALERT_TOPIC --project=$GOOGLE_CLOUD_PROJECT
