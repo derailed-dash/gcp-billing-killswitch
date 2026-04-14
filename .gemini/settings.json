@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "bigquery-mcp-server": {
+      "httpUrl": "https://bigquery.googleapis.com/mcp",
+      "authProviderType": "google_credentials",
+      "oauth": {
+        "scopes": ["https://www.googleapis.com/auth/bigquery"]
+      },
+      "timeout": 30000,
+      "headers": {
+        "x-goog-user-project": "$GOOGLE_CLOUD_PROJECT"
+      }
+    }
+  }
+}
