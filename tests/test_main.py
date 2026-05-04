@@ -270,18 +270,21 @@ def test_billing_enabled_and_disabled_successfully(mock_clients, cloud_event_fac
     )
 
 
-def test_get_billing_info_generic_api_error_assumes_disabled(mock_clients, cloud_event_factory, caplog, non_simulation_env):
+def test_get_billing_info_generic_error_continues(mock_clients, cloud_event_factory, caplog, non_simulation_env):
     """
-    Test that if a generic error occurs while checking billing, it's assumed to be disabled.
+    Test that if a generic error occurs while checking billing, it's logged and continues.
     """
     mock_billing_client, mock_budget_client = mock_clients
     
     # Mock the budget response
-    budget = Budget(budget_filter=Filter(projects=["projects/test-project-1"]))
+    budget = Budget(budget_filter=Filter(projects=["projects/test-project-1", "projects/test-project-2"]))
     mock_budget_client.get_budget.return_value = budget
     
-    # Simulate an exception when checking billing info
-    mock_billing_client.get_project_billing_info.side_effect = Exception("API Error")
+    # Simulate an exception when checking billing info for first project, success for second
+    mock_billing_client.get_project_billing_info.side_effect = [
+        Exception("API Error"),
+        type('obj', (object,), {'billing_enabled': True})
+    ]
     
     event = cloud_event_factory(
         data={"costAmount": 120, "budgetAmount": 100, "budgetDisplayName": "Test Budget"},
@@ -292,5 +295,42 @@ def test_get_billing_info_generic_api_error_assumes_disabled(mock_clients, cloud
 
     logs = " ".join(rec.message for rec in caplog.records)
     assert "Unable to get billing info for project" in logs
-    assert "Assuming billing is disabled" in logs
-    mock_billing_client.update_project_billing_info.assert_not_called()
+    assert "Successfully disabled billing for project projects/test-project-2" in logs
+    mock_billing_client.update_project_billing_info.assert_called_once()
+
+
+def test_permission_denied_on_first_project_continues_to_second(mock_clients, cloud_event_factory, caplog, non_simulation_env):
+    """
+    Test that if a PermissionDenied error occurs for the first project, 
+    the function continues to process the second project.
+    """
+    mock_billing_client, mock_budget_client = mock_clients
+    
+    # Mock the budget response with two projects
+    budget = Budget(budget_filter=Filter(projects=["projects/project-1", "projects/project-2"]))
+    mock_budget_client.get_budget.return_value = budget
+    
+    # Simulate PermissionDenied for the first project and success for the second
+    mock_billing_client.get_project_billing_info.side_effect = [
+        exceptions.PermissionDenied("Permission Denied for project-1"),
+        type('obj', (object,), {'billing_enabled': True})
+    ]
+    
+    event = cloud_event_factory(
+        data={"costAmount": 120, "budgetAmount": 100, "budgetDisplayName": "Test Budget"},
+        attributes={"budgetId": "test-budget", "billingAccountId": "test-billing-account"},
+    )
+
+    disable_billing_for_projects(event)
+
+    logs = " ".join(rec.message for rec in caplog.records)
+    
+    # Verify first project was logged as permission denied
+    assert "Permission denied for projects/project-1" in logs
+    
+    # Verify second project was processed successfully
+    assert "Successfully disabled billing for project projects/project-2" in logs
+    
+    # Check call counts
+    assert mock_billing_client.get_project_billing_info.call_count == 2
+    assert mock_billing_client.update_project_billing_info.call_count == 1
