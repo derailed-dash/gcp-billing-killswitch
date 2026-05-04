@@ -12,50 +12,13 @@ This project uses `gcloud` commands and shell scripts for provisioning and deplo
 - Python 3.12+
 - `uv` package manager
 
-## Environment Setup
+## Initial Setup
 
-1.  **Create a `.env` file** in the root of the project. This file will be used by both the setup and deployment scripts. It should contain:
+### 1. Environment
 
-    ```bash
-    # For gcloud authentication and project setup
-    export GOOGLE_CLOUD_PROJECT="your-finops-project-id"
-    export GOOGLE_CLOUD_REGION="your-region"
+**Create a `.env` file** in the root of the project. You can use the `.env.template` file as a starting point. This file will be used by both the setup and deployment scripts.
 
-    # For deployment
-    export FUNCTION_NAME="your-function-name"
-    export BILLING_ALERT_TOPIC="your-billing-alert-topic"
-    export BILLING_ACCOUNT_ID="your-billing-account-id"
-    export LOG_LEVEL="INFO"
-    export SIMULATE_DEACTIVATION="true"
-
-    # Create a budget in Cloud Billing, and obtain its ID:
-
-    # gcloud billing budgets list --billing-account=$BILLING_ACCOUNT_ID --project=$GOOGLE_CLOUD_PROJECT
-    export SAMPLE_BUDGET_ID="for-testing-a-budget"
-    ```
-
-2.  **Run the setup script:** Source the script to configure your shell environment. This will handle `gcloud` authentication, Python dependency installation, and virtual environment activation.
-
-```bash
-source scripts/setup-env.sh
-```
-
-## IAM Roles
-
-The Cloud Function's runtime service account requires the following roles to manage billing across projects:
-
-| Level | Role | Rationale |
-| :--- | :--- | :--- |
-| **Billing Account** | `roles/billing.admin` | Required to manage billing associations. |
-| **Organization/Project** | `roles/billing.projectManager` | Required to detach projects from billing. |
-| **Host Project** | `roles/logging.logWriter` | Required to write execution logs. |
-| **Host Project** | `roles/run.invoker` | Required for Eventarc to invoke the function. |
-
-## Deployment
-
-Run the following commands to setup the service account, Pub/Sub topic and Cloud Run function in your specified host project.
-
-### 1. Environment Setup
+**Run the setup script:** Source the script to configure your shell environment. This will handle `gcloud` authentication, Python dependency installation, and virtual environment activation.
 
 ```bash
 #####################################################
@@ -92,7 +55,11 @@ gcloud services enable --project=$GOOGLE_CLOUD_PROJECT \
 ```bash
 # Create the Pub/Sub topic.
 gcloud pubsub topics create $BILLING_ALERT_TOPIC --project=$GOOGLE_CLOUD_PROJECT
+```
 
+### 4. Create Service Account
+
+```bash
 # Create service account if it doesn't exist
 if ! gcloud iam service-accounts describe "${SERVICE_ACCOUNT_EMAIL}" --project="${GOOGLE_CLOUD_PROJECT}" &> /dev/null; then
     gcloud iam service-accounts create "${SERVICE_ACCOUNT_NAME}" \
@@ -104,7 +71,20 @@ else
 fi
 ```
 
-### 4. Assign IAM Roles
+### 5. Assign IAM Roles
+
+### IAM Roles
+
+The Cloud Function's runtime service account requires the following roles to manage billing across projects:
+
+| Level | Role | Rationale |
+| :--- | :--- | :--- |
+| **Billing Account** | `roles/billing.admin` | Required to manage billing associations. |
+| **Organization/Project** | `roles/billing.projectManager` | Required to detach projects from billing. |
+| **Host Project** | `roles/logging.logWriter` | Required to write execution logs. |
+| **Host Project** | `roles/run.invoker` | Required for Eventarc to invoke the function. |
+
+Bind roles as follows: 
 
 ```bash
 # Service Account IAM for Billing Account
@@ -144,25 +124,20 @@ gcloud projects add-iam-policy-binding $GOOGLE_CLOUD_PROJECT \
   --role="roles/pubsub.subscriber"
 ```
 
-Whenever you add a **new project to a budget monitored by this killswitch**, you must ensure the service account has the necessary permissions on that project.
+### 6. Create Budget
 
-You can verify existing roles like this:
+You can now create a budget for a billing account using the `gcloud alpha billing budgets create` command:
 
-1.  **Check existing roles:**
-    ```bash
-    gcloud projects get-iam-policy TARGET_PROJECT_ID \
-        --flatten="bindings[].members" \
-        --filter="bindings.members:serviceAccount:${SERVICE_ACCOUNT_EMAIL}"
-    ```
+```bash
+# Create a budget in Cloud Billing, and obtain its ID:
+gcloud billing budgets list --billing-account=$BILLING_ACCOUNT_ID --project=$GOOGLE_CLOUD_PROJECT
+```
 
-2.  **Assign the role (if missing):**
-    ```bash
-    gcloud projects add-iam-policy-binding TARGET_PROJECT_ID \
-        --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
-        --role="roles/billing.projectManager"
-    ```
+## Deploy
 
-### 5. Deploy Cloud Function
+Run whenever you update the function and need to deploy.
+
+### Deploy Cloud Function
 
 ```bash
 # Deploy the Cloud Run Function
@@ -182,7 +157,7 @@ gcloud functions deploy $FUNCTION_NAME \
 Note: for testing purposes, you can deploy the function in a simulation mode 
 where it will log that billing *would have been disabled* without actually making the API call to detach the project from its billing account. This is controlled by the `SIMULATE_DEACTIVATION` environment variable. Set `SIMULATE_DEACTIVATION=true` in your `.env` file before deploying.
 
-### Alternative Deployment Command - Using Gcloud Run Deploy
+### Alternative Deployment Command - Using `gcloud run deploy`
 
 With the evolution of Cloud Functions to Cloud Run Functions, we can now deploy using the `gcloud run deploy` command. 
 It converts the function code into a Cloud Run image with the specified base image to provide our runtime.
@@ -208,11 +183,15 @@ gcloud run deploy $FUNCTION_NAME \
   --cpu=0.2 \
   --memory=256Mi \
   --concurrency=1 \
+  --min-instances=0 \
   --max-instances=1 \
   --service-account="${SERVICE_ACCOUNT_EMAIL}" \
   --set-env-vars LOG_LEVEL=$LOG_LEVEL,SIMULATE_DEACTIVATION=$SIMULATE_DEACTIVATION 
 
-# Create the Eventarc Trigger, wiring our topic to the function
+# Check if you've already created the trigger:
+gcloud eventarc triggers list --location=$GOOGLE_CLOUD_REGION
+
+# If not, create the Eventarc Trigger, wiring our topic to the function
 gcloud eventarc triggers create ${FUNCTION_NAME}-trigger \
     --project=$GOOGLE_CLOUD_PROJECT \
     --location=$GOOGLE_CLOUD_REGION \
@@ -222,3 +201,23 @@ gcloud eventarc triggers create ${FUNCTION_NAME}-trigger \
     --transport-topic=projects/$GOOGLE_CLOUD_PROJECT/topics/$BILLING_ALERT_TOPIC \
     --service-account=$SERVICE_ACCOUNT_EMAIL
 ```
+
+### Day 2 Operations
+
+Whenever you add a **new project to a budget monitored by this killswitch**, you must ensure the service account has the necessary permissions on that project.
+
+You can verify existing roles like this:
+
+1.  **Check existing roles:**
+    ```bash
+    gcloud projects get-iam-policy TARGET_PROJECT_ID \
+        --flatten="bindings[].members" \
+        --filter="bindings.members:serviceAccount:${SERVICE_ACCOUNT_EMAIL}"
+    ```
+
+2.  **Assign the role (if missing):**
+    ```bash
+    gcloud projects add-iam-policy-binding TARGET_PROJECT_ID \
+        --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+        --role="roles/billing.projectManager"
+    ```

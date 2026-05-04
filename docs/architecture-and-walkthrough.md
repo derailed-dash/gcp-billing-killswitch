@@ -6,9 +6,8 @@
 
 | Decision | Rationale |
 | :--- | :--- |
-| **Cloud Run Functions (2nd Gen)** | Provides a modern, container-based serverless environment with better performance, concurrency, and Eventarc integration compared to Gen 1. |
+| **Cloud Run Functions** | Provides a lightweight serverless function  execution environment that we can trigger in response to a Pub/Sub event. |
 | **Pub/Sub Trigger** | Standard mechanism for receiving Google Cloud Billing budget notifications. Decouples the budget alert source from the killswitch action. |
-| **Python** | Targets a modern Python version for performance, security, and long-term support. |
 | **Simulation Mode (`SIMULATE_DEACTIVATION`)** | Crucial for safety. Allows users to test the entire alert-to-function pipeline without actually disabling billing until they are ready. |
 | **`uv` for Dependency Management** | Provides extremely fast dependency resolution and a modern workflow for Python projects. |
 
