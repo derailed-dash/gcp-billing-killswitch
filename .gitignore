@@ -194,3 +194,6 @@ testem.log
 Thumbs.db
 *.vscode*
 
+
+.gemini/
+gha-creds-*.json
