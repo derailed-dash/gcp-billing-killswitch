@@ -13,6 +13,7 @@ The Pub/Sub message is expected to have the following format:
 - **Message Payload (JSON):**
   - `costAmount` (float): The amount of cost that has been incurred.
   - `budgetAmount` (float): The budgeted amount.
+  - `budgetDisplayName` (str): The display name of the budget.
 
 - **Message Attributes:**
   - `billingAccountId` (str): The ID of the billing account.
@@ -80,8 +81,9 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
         return
     
     if not budget_id:
-        logging.error(f"Function {app_name}: Function: No budgetId found in message attributes.")
+        logging.error(f"Function {app_name}: No budgetId found in message attributes.")
         return
+
 
     logging.info(f"Function {app_name}, {budget_name}: {cost_amount} has exceeded budget {budget_amount}.")
 
