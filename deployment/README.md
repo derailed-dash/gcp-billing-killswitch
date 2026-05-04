@@ -152,7 +152,7 @@ You can verify existing roles like this:
     ```bash
     gcloud projects get-iam-policy TARGET_PROJECT_ID \
         --flatten="bindings[].members" \
-        --filter="bindings.members:cf-billing-killswitch-sa@YOUR_ADMIN_PROJECT.iam.gserviceaccount.com"
+        --filter="bindings.members:serviceAccount:${SERVICE_ACCOUNT_EMAIL}"
     ```
 
 2.  **Assign the role (if missing):**
