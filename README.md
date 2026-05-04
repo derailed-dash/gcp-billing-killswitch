@@ -23,6 +23,7 @@ When billing is disconnected you will be able to safely investigate the root cau
   - [One-Time Project Setup (Per Project)](#one-time-project-setup-per-project)
   - [Deploying the Cloud Run Function](#deploying-the-cloud-run-function)
 - [Useful Commands](#useful-commands)
+- [GitHub Workflows](#github-workflows)
 - [Testing](#testing)
   - [Unit Testing](#unit-testing)
   - [Integration Testing](#integration-testing)
@@ -63,9 +64,10 @@ To configure your local development environment, you must first create a `.env` 
     # For deployment
     export FUNCTION_NAME="your-function-name"
     export BILLING_ALERT_TOPIC="your-billing-alert-topic"
-    export BILLING_ACCOUNT_ID="your billing ID"
-    
+    export BILLING_ACCOUNT_ID="your-billing-account-id"
+
     # Create a budget in Cloud Billing, and obtain its ID:
+
     # gcloud billing budgets list --billing-account=$BILLING_ACCOUNT_ID --project=$GOOGLE_CLOUD_PROJECT
     export SAMPLE_BUDGET_ID="for-testing-a-budget"
     ```
@@ -116,6 +118,19 @@ To successfully detach a project from billing, the service account must have per
     - `roles/billing.projectManager` (Billing Project Manager)
 
 *Note: Without `roles/billing.projectManager` on the target project, the function will fail with a `403 Forbidden` error when attempting to get or update billing info.*
+
+### Pub/Sub Message Format
+
+The function expects a Pub/Sub message with the following format:
+
+- **Message Payload (JSON):**
+  - `costAmount` (float): The amount of cost that has been incurred.
+  - `budgetAmount` (float): The budgeted amount.
+  - `budgetDisplayName` (str): The display name of the budget.
+
+- **Message Attributes:**
+  - `billingAccountId` (str): The ID of the billing account.
+  - `budgetId` (str): The ID of the budget.
 
 ## Adding New Projects to the Killswitch
 
