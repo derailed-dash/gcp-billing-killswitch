@@ -25,6 +25,8 @@ This project uses `gcloud` commands and shell scripts for provisioning and deplo
     export FUNCTION_NAME="your-function-name"
     export BILLING_ALERT_TOPIC="your-billing-alert-topic"
     export BILLING_ACCOUNT_ID="your-billing-account-id"
+    export LOG_LEVEL="INFO"
+    export SIMULATE_DEACTIVATION="true"
 
     # Create a budget in Cloud Billing, and obtain its ID:
 
