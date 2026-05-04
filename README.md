@@ -57,7 +57,7 @@ kill-project-billing/
 ├── scripts/                   # Environment setup and automation scripts
 ├── src/                       # Cloud Run Function source code
 ├── tests/                     # Unit, integration, and E2E tests
-├── .env.enc                   # Encrypted environment configuration
+├── .env.template              # Sample .env
 ├── Makefile                   # Developer convenience commands
 ├── pyproject.toml             # Python project configuration
 ├── README.md                  # This file
