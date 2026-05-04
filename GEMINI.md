@@ -20,11 +20,8 @@ Note that the Google Cloud Run Function requires its own `requirements.txt`. Thi
 
 Before offering advice, make sure you have read these URLs for additional context. Use the `webFetch` tool to read the content:
 
-- [Create, edit, or delete budgets and budget alerts](https://cloud.google.com/billing/docs/how-to/budgets)
 - [https://cloud.google.com/blog/products/gcp/better-cost-control-with-google-cloud-billing-programmatic-notifications](https://cloud.google.com/blog/products/gcp/better-cost-control-with-google-cloud-billing-programmatic-notifications)
 - [Set up programmatic notifications](https://cloud.google.com/billing/docs/how-to/budgets-programmatic-notifications)
 - [Programmatic notifications: Notification format](https://cloud.google.com/billing/docs/how-to/budgets-programmatic-notifications#notification_format)
 - [Enable, disable, or change billing for a project](https://cloud.google.com/billing/docs/how-to/modify-project)
 - [Disable billing usage with notifications](https://cloud.google.com/billing/docs/how-to/disable-billing-with-notifications)
-- [gcloud functions deploy command](https://cloud.google.com/sdk/gcloud/reference/functions/deploy)
-- [gcloud run deploy command](https://cloud.google.com/sdk/gcloud/reference/run/deploy)

@@ -103,47 +103,49 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
 
     for project_id in project_ids:
         project_name = f"projects/{project_id}"
-        try:
-            if _is_billing_enabled_for_project(project_name): # billing might already be disabled
-                logging.info(f"Function {app_name}, {budget_name}: Disabling billing for {project_id}...")
-                
-                # Check for simulation mode
-                simulate_deactivation = os.getenv("SIMULATE_DEACTIVATION", "false").lower() == "true"
+        
+        # Determine whether billing is enabled for the project. 
+        # Returns True if enabled, False if disabled, and None if an error occurred.
+        billing_enabled = _is_billing_enabled_for_project(project_name)
+        
+        if billing_enabled is True:
+            logging.info(f"Function {app_name}, {budget_name}: Disabling billing for {project_id}...")
+            
+            # Check for simulation mode
+            simulate_deactivation = os.getenv("SIMULATE_DEACTIVATION", "false").lower() == "true"
 
-                if simulate_deactivation:
-                    logging.info(f"SIMULATION MODE: Billing would have been disabled for project {project_id} "
-                                 f"for budget {budget_name}.")
-                else:
-                    _disable_billing_for_project(project_name)
+            if simulate_deactivation:
+                logging.info(f"SIMULATION MODE: Billing would have been disabled for project {project_id} "
+                             f"for budget {budget_name}.")
             else:
-                logging.info(f"Function {app_name}, {budget_name}: Billing is already disabled for project {project_id}.") 
-        except exceptions.PermissionDenied as e:
-            logging.error(f"Function {app_name}: Permission denied for {project_id}. "
-                          f"Ensure service account has 'roles/billing.projectManager' on the project: {e}")
+                _disable_billing_for_project(project_name)
+        elif billing_enabled is False:
+            logging.info(f"Function {app_name}, {budget_name}: Billing is already disabled for project {project_id}.")
+        # If billing_enabled is None, an error occurred and was already logged in _is_billing_enabled_for_project
 
-def _is_billing_enabled_for_project(project_name: str) -> bool:
+def _is_billing_enabled_for_project(project_name: str) -> bool | None:
     """Determine whether billing is enabled for a project.
 
     Args:
         project_name: Project to check, with the format 'projects/<project_id>'.
 
     Returns:
-        Whether project has billing enabled or not.
+        Whether project has billing enabled or not, or None if an error occurred.
     """
     try:
         logging.debug(f"Function {app_name}: Getting billing info for project '{project_name}'...")
         response = billing_client.get_project_billing_info(name=project_name)
 
         return response.billing_enabled
-    except exceptions.PermissionDenied:
-        # We must re-raise PermissionDenied errors. If we swallow this and return False,
-        # the function will incorrectly assume billing is already disabled when we 
-        # actually just don't have the permission to check.
-        raise
+    except exceptions.PermissionDenied as e:
+        logging.error(f"Function {app_name}: Permission denied for {project_name}. "
+                      f"Ensure service account has 'roles/billing.projectManager' on the project: {e}")
+        return None
     except Exception as e:
         logging.warning(f"Function {app_name}: Unable to get billing info for project {project_name}. "
-                        f"Assuming billing is disabled. Error message: {e}")
-        return False
+                        f"Error message: {e}")
+        return None
+
     
 def _disable_billing_for_project(project_name: str) -> None:
     """Disable billing for a project by removing its billing account.
