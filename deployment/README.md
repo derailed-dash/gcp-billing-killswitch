@@ -158,7 +158,7 @@ You can verify existing roles like this:
 2.  **Assign the role (if missing):**
     ```bash
     gcloud projects add-iam-policy-binding TARGET_PROJECT_ID \
-        --member="serviceAccount:cf-billing-killswitch-sa@YOUR_ADMIN_PROJECT.iam.gserviceaccount.com" \
+        --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
         --role="roles/billing.projectManager"
     ```
 
