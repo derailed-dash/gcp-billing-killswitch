@@ -100,14 +100,42 @@ The project is structured as follows:
 
 ## IAM Permissions
 
-The Cloud Function's **runtime service account** requires one of the following IAM role configurations:
+The Cloud Function's **runtime service account** requires the following IAM roles to manage billing across projects:
 
-1.  **On the Cloud Billing Account:**
-    - `roles/billing.admin` (Billing Account Administrator)
+### 1. On the Cloud Billing Account
 
-2.  **On each target Project to be disconnected:**
-    - `roles/billing.projectBillingManager` (Project Billing Manager)
-    - AND `roles/resourcemanager.projectOwner` (Project Owner) or `roles/viewer` (Project Viewer)
+- `roles/billing.admin` (Billing Account Administrator)
+
+### 2. On the Target Projects (or Organization/Folder level)
+To successfully detach a project from billing, the service account must have permission to manage that project's billing information.
+
+- **Recommended Approach (Organization Level):** Grant the following role at the Organization or Folder level to cover all current and future projects:
+    - `roles/billing.projectManager` (Billing Project Manager)
+
+- **Alternative Approach (Project Level):** Grant the role on each specific project that is monitored by a budget alert:
+    - `roles/billing.projectManager` (Billing Project Manager)
+
+*Note: Without `roles/billing.projectManager` on the target project, the function will fail with a `403 Forbidden` error when attempting to get or update billing info.*
+
+## Adding New Projects to the Killswitch
+
+Whenever you add a new project to a budget monitored by this killswitch, you **must** ensure the service account has the necessary permissions on that project.
+
+### How to Verify and Assign Permissions
+
+1.  **Check existing roles:**
+    ```bash
+    gcloud projects get-iam-policy TARGET_PROJECT_ID \
+        --flatten="bindings[].members" \
+        --filter="bindings.members:cf-billing-killswitch-sa@YOUR_ADMIN_PROJECT.iam.gserviceaccount.com"
+    ```
+
+2.  **Assign the role (if missing):**
+    ```bash
+    gcloud projects add-iam-policy-binding TARGET_PROJECT_ID \
+        --member="serviceAccount:cf-billing-killswitch-sa@YOUR_ADMIN_PROJECT.iam.gserviceaccount.com" \
+        --role="roles/billing.projectManager"
+    ```
 
 ## Deployment
 
@@ -157,6 +185,14 @@ gcloud billing accounts add-iam-policy-binding "${BILLING_ACCOUNT_ID}" \
   --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
   --role="roles/billing.admin" \
   --project="${GOOGLE_CLOUD_PROJECT}"
+
+# (RECOMMENDED) Service Account IAM for Organization
+# This ensures the killswitch works for ALL current and future projects.
+# Get your Org ID: gcloud organizations list
+export ORG_ID="your-org-id"
+gcloud organizations add-iam-policy-binding "${ORG_ID}" \
+  --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+  --role="roles/billing.projectManager"
 
 # Service Account IAM for Function-Hosting Project
 
