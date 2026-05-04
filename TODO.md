@@ -12,8 +12,9 @@
 - [x] Generate Function `requirements.txt` from `pyproject.toml`, using `make requirements`
 - [x] Create and execute unit tests
 - [x] Create Cloud Function deployment script
-- [x] Create testing strategy
-- [x] Create service account
+- [x] Create core documentation (README, Architecture, DESIGN, Testing, Deployment)
+- [x] Service account setup instructions
+- [ ] Maintain Documentation (ongoing)
 - [x] Fix unit tests
 - [x] Create the Pub/Sub with gcloud
 - [x] Fix Budget Client 403 with SA
