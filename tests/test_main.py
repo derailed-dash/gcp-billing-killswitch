@@ -193,7 +193,11 @@ def test_disable_billing_permission_denied_error(mock_clients, cloud_event_facto
 
     disable_billing_for_projects(event)
 
-    assert any("Failed to disable billing for projects/test-project-1" in rec.message and "Permission Denied" in rec.message for rec in caplog.records)
+    assert any(
+        "Failed to disable billing for projects/test-project-1" in rec.message
+        and "Permission Denied" in rec.message
+        for rec in caplog.records
+    )
 
 
 def test_simulation_mode_enabled(mock_clients, cloud_event_factory, caplog):
