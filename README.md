@@ -95,8 +95,9 @@ Detailed instructions for provisioning resources and deploying the function can 
 | :--- | :--- |
 | `source scripts/setup-env.sh` | Initialize `gcloud` and local Python environment. |
 | `make install` | Install all dependencies using `uv`. |
-| `make test` | Run unit and integration tests. |
-| `make lint` | Run quality checks (`codespell`, `ruff`, `mypy`). |
+| `make test`    | Run unit and integration tests. |
+| `make lint`    | Run quality checks (`codespell`, `ruff`, `mypy`). |
+| `make deploy`  | Deploy the Cloud Run Function. |
 
 For full command options and usage, refer to the [Makefile](Makefile).
 
