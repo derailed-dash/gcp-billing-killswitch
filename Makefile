@@ -8,7 +8,7 @@ install:
 # Run unit and integration tests
 test:
 	@test -n "$(GOOGLE_CLOUD_PROJECT)" || (echo "Error: GOOGLE_CLOUD_PROJECT is not set. Setup environment before running tests" && exit 1)
-	uv run pytest tests
+	DISABLE_CLOUD_LOGGING=true uv run pytest tests
 
 # Run code quality checks (codespell, ruff, mypy)
 lint:

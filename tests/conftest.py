@@ -21,4 +21,5 @@ def cleanup_logging(request):
     # module (src.main) has been fully loaded by the time we need to access it.
     from src.main import logging_client
 
-    logging_client.close()
+    if logging_client is not None:
+        logging_client.close()

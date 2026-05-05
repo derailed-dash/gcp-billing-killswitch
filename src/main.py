@@ -37,28 +37,28 @@ from google.cloud.billing.budgets_v1 import BudgetServiceClient
 log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
 log_level_num = getattr(logging, log_level, logging.INFO)
 
+logging_client = None
+
 # Calling `setup_logging()` intercepts Python's standard `logging` module
 # and attaches a Cloud Logging handler to it. This automatically 
 # sends all standard logger output (like logger.info) to GCP.
-logging_client = google.cloud.logging.Client()
-logging_client.setup_logging(log_level=log_level_num) 
+if os.environ.get("DISABLE_CLOUD_LOGGING", "false").lower() != "true":
+    logging_client = google.cloud.logging.Client()
+    logging_client.setup_logging(log_level=log_level_num)
 
 app_name = "billing-killswitch"
 logger = logging.getLogger(app_name)
+logger.setLevel(log_level_num)
+
+# Ensure local fallback logging works if cloud logging is disabled
+if os.environ.get("DISABLE_CLOUD_LOGGING", "false").lower() == "true":
+    logging.basicConfig(level=log_level_num)
 
 billing_client = billing_v1.CloudBillingClient()
 budget_client = BudgetServiceClient()
 
-@functions_framework.cloud_event
-def disable_billing_for_projects(cloud_event: CloudEvent):
-    """
-    Cloud Function to disable billing for projects based on a Pub/Sub message from a billing alert.
-    """
-    # Check for simulation mode
-    simulate_deactivation = os.getenv("SIMULATE_DEACTIVATION", "false").lower() == "true"
-
-    logger.debug("Invoked from Pub/Sub message.")
-
+def _parse_and_validate_message(cloud_event: CloudEvent) -> dict | None:
+    """Parses and validates the incoming Pub/Sub message."""
     # The Pub/Sub message is base64-encoded
     message_data = base64.b64decode(cloud_event.data["message"]["data"]).decode("utf-8")
     message_json = json.loads(message_data)
@@ -71,7 +71,7 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
 
     if "costAmount" not in message_json or "budgetAmount" not in message_json:
         logger.error(f"Budget '{budget_name}': Missing 'costAmount' or 'budgetAmount' in message payload. Aborting for safety.")
-        return
+        return None
 
     cost_amount = message_json["costAmount"]
     budget_amount = message_json["budgetAmount"]
@@ -80,18 +80,46 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
     if cost_amount <= budget_amount:
         logger.info(f"Budget '{budget_name}': "
                     f"{cost_amount} has not exceeded budget {budget_amount}. No action taken.")
-        return
+        return None
 
     # Get the budget ID and billing_account_id from the message attributes
     budget_id = attributes.get("budgetId", "")
     billing_account_id = attributes.get("billingAccountId", "")
     if not billing_account_id:
         logger.error("No billingAccountId found in message payload.")
-        return
+        return None
     
     if not budget_id:
         logger.error("No budgetId found in message attributes.")
+        return None
+
+    return {
+        "budget_name": budget_name,
+        "cost_amount": cost_amount,
+        "budget_amount": budget_amount,
+        "budget_id": budget_id,
+        "billing_account_id": billing_account_id
+    }
+
+@functions_framework.cloud_event
+def disable_billing_for_projects(cloud_event: CloudEvent):
+    """
+    Cloud Function to disable billing for projects based on a Pub/Sub message from a billing alert.
+    """
+    # Check for simulation mode
+    simulate_deactivation = os.getenv("SIMULATE_DEACTIVATION", "false").lower() == "true"
+
+    logger.debug("Invoked from Pub/Sub message.")
+
+    parsed_msg = _parse_and_validate_message(cloud_event)
+    if not parsed_msg:
         return
+
+    budget_name = parsed_msg["budget_name"]
+    cost_amount = parsed_msg["cost_amount"]
+    budget_amount = parsed_msg["budget_amount"]
+    budget_id = parsed_msg["budget_id"]
+    billing_account_id = parsed_msg["billing_account_id"]
 
     logger.info(f"Budget '{budget_name}': {cost_amount} has exceeded budget {budget_amount}.")
 
