@@ -68,8 +68,13 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
     logger.debug(f"Pub/Sub message data: {message_data}")
 
     budget_name = message_json.get("budgetDisplayName", "Unknown Budget")
-    cost_amount = message_json.get("costAmount", 0.0)
-    budget_amount = message_json.get("budgetAmount", 0.0)
+
+    if "costAmount" not in message_json or "budgetAmount" not in message_json:
+        logger.error(f"Budget '{budget_name}': Missing 'costAmount' or 'budgetAmount' in message payload. Aborting for safety.")
+        return
+
+    cost_amount = message_json["costAmount"]
+    budget_amount = message_json["budgetAmount"]
 
     # Only disable billing if the cost has exceeded the budget
     if cost_amount <= budget_amount:
