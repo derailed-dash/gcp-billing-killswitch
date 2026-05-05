@@ -15,10 +15,13 @@
 
 The GCP Billing Killswitch is an event-driven serverless solution. It is designed to be a "set and forget" safety mechanism.
 
-- **Trigger**: A Cloud Billing Budget alert publishes a message to a Pub/Sub topic when spending exceeds a threshold.
+- **Trigger**: A Cloud Billing Budget is configured with a programmatic notification to publish messages to a Pub/Sub topic.
 - **Orchestration**: A Cloud Run Function (2nd Gen) is triggered by the Pub/Sub message via an Eventarc trigger.
-- **Logic**: The function parses the message, identifies the associated projects, and calls the Cloud Billing API to remove the billing account association.
+- **Logic**: The function parses the message, checks if the cost exceeds the budget, and if so, identifies the associated projects and calls the Cloud Billing API to remove the billing account association.
 - **Logging**: Detailed execution logs are sent to Cloud Logging, providing an audit trail of killswitch activities.
+
+> [!NOTE]
+> **Understanding Trigger Frequency:** Unlike email alerts which only fire when specific thresholds are crossed, GCP programmatic notifications broadcast the *current status* of your budget periodically throughout the day (typically every 20-30 minutes) regardless of whether a threshold has been breached. As a result, this function will invoke frequently to monitor the pulse of your budgets, evaluate the current cost, and gracefully exit if the budget has not been exceeded.
 
 ## Deployment Architecture Overview
 

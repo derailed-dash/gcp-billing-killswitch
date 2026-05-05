@@ -37,67 +37,103 @@ from google.cloud.billing.budgets_v1 import BudgetServiceClient
 log_level = os.environ.get("LOG_LEVEL", "INFO").upper()
 log_level_num = getattr(logging, log_level, logging.INFO)
 
-# Configure a Cloud Logging handler and integrate it with Python's logging module
-logging_client = google.cloud.logging.Client()
-logging_client.setup_logging(log_level=log_level_num) 
+logging_client = None
+
+# Calling `setup_logging()` intercepts Python's standard `logging` module
+# and attaches a Cloud Logging handler to it. This automatically 
+# sends all standard logger output (like logger.info) to GCP.
+if os.environ.get("DISABLE_CLOUD_LOGGING", "false").lower() != "true":
+    logging_client = google.cloud.logging.Client()
+    logging_client.setup_logging(log_level=log_level_num)
 
 app_name = "billing-killswitch"
-logger = logging_client.logger(app_name)
+logger = logging.getLogger(app_name)
+logger.setLevel(log_level_num)
+
+# Ensure local fallback logging works if cloud logging is disabled
+if os.environ.get("DISABLE_CLOUD_LOGGING", "false").lower() == "true":
+    logging.basicConfig(level=log_level_num)
 
 billing_client = billing_v1.CloudBillingClient()
 budget_client = BudgetServiceClient()
 
+def _parse_and_validate_message(cloud_event: CloudEvent) -> dict | None:
+    """Parses and validates the incoming Pub/Sub message."""
+    # The Pub/Sub message is base64-encoded
+    message_data = base64.b64decode(cloud_event.data["message"]["data"]).decode("utf-8")
+    message_json = json.loads(message_data)
+    attributes = cloud_event.data["message"]["attributes"]
+
+    logger.debug(f"Pub/Sub message attributes: {attributes}")
+    logger.debug(f"Pub/Sub message data: {message_data}")
+
+    budget_name = message_json.get("budgetDisplayName", "Unknown Budget")
+
+    if "costAmount" not in message_json or "budgetAmount" not in message_json:
+        logger.error(f"Budget '{budget_name}': Missing 'costAmount' or 'budgetAmount' in message payload. Aborting for safety.")
+        return None
+
+    cost_amount = message_json["costAmount"]
+    budget_amount = message_json["budgetAmount"]
+
+    # Only disable billing if the cost has exceeded the budget
+    if cost_amount <= budget_amount:
+        logger.info(f"Budget '{budget_name}': "
+                    f"{cost_amount} has not exceeded budget {budget_amount}. No action taken.")
+        return None
+
+    # Get the budget ID and billing_account_id from the message attributes
+    budget_id = attributes.get("budgetId", "")
+    billing_account_id = attributes.get("billingAccountId", "")
+    if not billing_account_id:
+        logger.error("No billingAccountId found in message payload.")
+        return None
+    
+    if not budget_id:
+        logger.error("No budgetId found in message attributes.")
+        return None
+
+    return {
+        "budget_name": budget_name,
+        "cost_amount": cost_amount,
+        "budget_amount": budget_amount,
+        "budget_id": budget_id,
+        "billing_account_id": billing_account_id
+    }
 
 @functions_framework.cloud_event
 def disable_billing_for_projects(cloud_event: CloudEvent):
     """
     Cloud Function to disable billing for projects based on a Pub/Sub message from a billing alert.
     """
-    logging.debug(f"Function {app_name} invoked from Pub/Sub message.")
+    # Check for simulation mode
+    simulate_deactivation = os.getenv("SIMULATE_DEACTIVATION", "false").lower() == "true"
 
-    # The Pub/Sub message is base64-encoded
-    message_data = base64.b64decode(cloud_event.data["message"]["data"]).decode("utf-8")
-    message_json = json.loads(message_data)
-    attributes = cloud_event.data["message"]["attributes"]
+    logger.debug("Invoked from Pub/Sub message.")
 
-    logging.debug(f"Pub/Sub message attributes: {attributes}")
-    logging.debug(f"Pub/Sub message data: {message_data}")
-
-    budget_name = message_json["budgetDisplayName"]
-    cost_amount = message_json["costAmount"]
-    budget_amount = message_json["budgetAmount"]
-
-    # Only disable billing if the cost has exceeded the budget
-    if cost_amount <= budget_amount:
-        logging.info(f"Function {app_name}, {budget_name}: "
-                     f"{cost_amount} has not exceeded budget {budget_amount}. No action taken.")
+    parsed_msg = _parse_and_validate_message(cloud_event)
+    if not parsed_msg:
         return
 
-    # Get the budget ID and billing_account_id from the message attributes
-    budget_id = attributes.get("budgetId", "")
-    billing_account_id = attributes.get("billingAccountId", "")
-    if not billing_account_id:
-        logging.error(f"Function {app_name}: No billingAccountId found in message payload.")
-        return
-    
-    if not budget_id:
-        logging.error(f"Function {app_name}: No budgetId found in message attributes.")
-        return
+    budget_name = parsed_msg["budget_name"]
+    cost_amount = parsed_msg["cost_amount"]
+    budget_amount = parsed_msg["budget_amount"]
+    budget_id = parsed_msg["budget_id"]
+    billing_account_id = parsed_msg["billing_account_id"]
 
-
-    logging.info(f"Function {app_name}, {budget_name}: {cost_amount} has exceeded budget {budget_amount}.")
+    logger.info(f"Budget '{budget_name}': {cost_amount} has exceeded budget {budget_amount}.")
 
     try:
         # Use the budget ID to get the budget details
         full_budget_name = f"billingAccounts/{billing_account_id}/budgets/{budget_id}"
         budget = budget_client.get_budget(name=full_budget_name)
     except Exception as e:
-        logging.error(f"Function {app_name}: Error getting budget details: {e}")
+        logger.error(f"Budget '{budget_name}': Error getting budget details: {e}")
         return
 
     # The budget filter contains the projects the budget is scoped to
     if not budget.budget_filter or not budget.budget_filter.projects:
-        logging.warning(f"Function {app_name}: {budget_name} is not scoped to any projects. No action taken.")
+        logger.warning(f"Budget '{budget_name}' is not scoped to any projects. No action taken.")
         return
 
     # Get all projects associated with this budget
@@ -111,18 +147,15 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
         billing_enabled = _is_billing_enabled_for_project(project_name)
         
         if billing_enabled is True:
-            logging.info(f"Function {app_name}, {budget_name}: Disabling billing for {project_id}...")
+            logger.info(f"Budget '{budget_name}': Disabling billing for {project_id}...")
             
-            # Check for simulation mode
-            simulate_deactivation = os.getenv("SIMULATE_DEACTIVATION", "false").lower() == "true"
-
             if simulate_deactivation:
-                logging.info(f"SIMULATION MODE: Billing would have been disabled for project {project_id} "
-                             f"for budget {budget_name}.")
+                logger.info(f"SIMULATION MODE: Billing would have been disabled for project {project_id} "
+                            f"for budget {budget_name}.")
             else:
                 _disable_billing_for_project(project_name)
         elif billing_enabled is False:
-            logging.info(f"Function {app_name}, {budget_name}: Billing is already disabled for project {project_id}.")
+            logger.info(f"Budget '{budget_name}': Billing is already disabled for project {project_id}.")
         # If billing_enabled is None, an error occurred and was already logged in _is_billing_enabled_for_project
 
 def _is_billing_enabled_for_project(project_name: str) -> bool | None:
@@ -135,17 +168,17 @@ def _is_billing_enabled_for_project(project_name: str) -> bool | None:
         Whether project has billing enabled or not, or None if an error occurred.
     """
     try:
-        logging.debug(f"Function {app_name}: Getting billing info for project '{project_name}'...")
+        logger.debug(f"Getting billing info for project '{project_name}'...")
         response = billing_client.get_project_billing_info(name=project_name)
 
         return response.billing_enabled
     except exceptions.PermissionDenied as e:
-        logging.error(f"Function {app_name}: Permission denied for {project_name}. "
-                      f"Ensure service account has 'roles/billing.projectManager' on the project: {e}")
+        logger.error(f"Permission denied for {project_name}. "
+                     f"Ensure service account has 'roles/billing.projectManager' on the project: {e}")
         return None
     except Exception as e:
-        logging.warning(f"Function {app_name}: Unable to get billing info for project {project_name}. "
-                        f"Error message: {e}")
+        logger.warning(f"Unable to get billing info for project {project_name}. "
+                       f"Error message: {e}")
         return None
 
     
@@ -163,8 +196,8 @@ def _disable_billing_for_project(project_name: str) -> None:
         project_billing_info = billing_v1.ProjectBillingInfo(billing_account_name="")
         billing_client.update_project_billing_info(name=project_name, project_billing_info=project_billing_info)
 
-        logging.info(f"Function {app_name}: Successfully disabled billing for project {project_name}")
+        logger.info(f"Successfully disabled billing for project {project_name}")
     except exceptions.PermissionDenied as e:
-        logging.error(f"Function {app_name}: Failed to disable billing for {project_name}, check permissions: {e}")
+        logger.error(f"Failed to disable billing for {project_name}, check permissions: {e}")
     except Exception as e:
-        logging.error(f"Function {app_name}: Error disabling billing for project {project_name}: {e}")
+        logger.error(f"Error disabling billing for project {project_name}: {e}")
