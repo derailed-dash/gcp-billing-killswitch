@@ -128,7 +128,7 @@ def disable_billing_for_projects(cloud_event: CloudEvent):
         full_budget_name = f"billingAccounts/{billing_account_id}/budgets/{budget_id}"
         budget = budget_client.get_budget(name=full_budget_name)
     except Exception as e:
-        logger.error(f"Error getting budget details: {e}")
+        logger.error(f"Budget '{budget_name}': Error getting budget details: {e}")
         return
 
     # The budget filter contains the projects the budget is scoped to
